@@ -62,12 +62,12 @@ const data = {
   user: [{ id: 1, email: "admin@sinzo.dev", password: bcryptHash, name: "Admin", role: "SUPER_ADMIN", active: true, twoFactorSecret: null, twoFactorEnabled: false, sessionVersion: 0, recoveryCodes: null, resetToken: null, resetTokenExpires: null, createdAt: iso(now) }],
   setting: (() => {
     const e = {
-      store: { name: "SINZO", tagline: "Shop online, pay on delivery", about: "Premium fashion delivered across Bangladesh. Cash on delivery, 7-day returns.", email: "hello@sinzo.dev", phone: "+8801700000000", address: "Dhaka, Bangladesh", logo: "", currency: "BDT" },
+      store: { name: "TRENDING'S", tagline: "Shop online, pay on delivery", about: "Premium fashion delivered across Bangladesh. Cash on delivery, 7-day returns.", email: "hello@sinzo.dev", phone: "+8801700000000", address: "Dhaka, Bangladesh", logo: "", currency: "BDT" },
       theme: { mode: "light", accent: "#b98a5e" },
       shipping: { insideDhaka: 60, outsideDhaka: 120, freeShippingThreshold: 2500, estimateInside: "24h", estimateOutside: "48-72h" },
       homepage: { featuredCollection: "new-arrivals", bestSellersCollection: "best-sellers", heroTitle: "New Season. New You.", heroSubtitle: "Handpicked pieces crafted for everyday confidence.", heroCtaLabel: "Shop Now", heroCtaHref: "/products" },
       checkout: { allowCod: true, minOrder: 300, maxOrder: 50000 },
-      seo: { metaTitle: "SINZO - Shop online, pay on delivery", metaDescription: "Trendy fashion delivered across Bangladesh with cash on delivery.", ogImage: "/uploads/seed/hero.jpg" },
+      seo: { metaTitle: "TRENDING'S - Shop online, pay on delivery", metaDescription: "Trendy fashion delivered across Bangladesh with cash on delivery.", ogImage: "/uploads/seed/hero.jpg" },
       integrations: {},
       maintenance: { enabled: false },
     };

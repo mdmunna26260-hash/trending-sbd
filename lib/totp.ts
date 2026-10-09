@@ -56,7 +56,7 @@ export function verifyTotp(secret: string, token: string, window = 1): boolean {
   return false;
 }
 
-export function otpauthUrl(secret: string, account: string, issuer = "SINZO Admin"): string {
+export function otpauthUrl(secret: string, account: string, issuer = "TRENDING'S Admin"): string {
   return `otpauth://totp/${encodeURIComponent(issuer)}:${encodeURIComponent(account)}?secret=${secret}&issuer=${encodeURIComponent(issuer)}&algorithm=SHA1&digits=6&period=30`;
 }
 

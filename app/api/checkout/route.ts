@@ -11,6 +11,10 @@ import { normalizeBDPhone, isValidBDPhone } from "@/lib/phone";
 import { notifyAdmin, emailCustomerOrder } from "@/lib/notify";
 import { subscribeImplicit } from "@/lib/newsletter";
 import { parseCheckoutLines, buildCheckoutItems, CheckoutValidationError } from "@/lib/checkout-items";
+import { loadActivePromotion } from "@/lib/promotions/repository";
+import { evaluateCart } from "@/lib/promotions/service";
+import { slotSelectionKey } from "@/lib/promotions/engine";
+import type { GiftSelectionMap } from "@/lib/promotions/types";
 import { checkoutTotals } from "@/lib/checkout-pricing";
 import { validateCoupon, CouponValidationError } from "@/lib/coupons";
 import { deployChannel } from "@/lib/deploy-channel";
@@ -58,7 +62,70 @@ export async function POST(req: Request) {
       where: { id: { in: [...new Set(lines.map((i) => i.productId))] }, status: "ACTIVE" },
       include: { variants: true, images: { orderBy: { position: "asc" } } },
     });
-    const { items: orderItems, subtotal } = buildCheckoutItems(lines, products);
+    /* ------------------------------------------------------------------
+       FREE-GIFT RE-VALIDATION (server-authoritative).
+       The browser sends gift rows; none of them are trusted. We re-run the
+       same pure engine against the PAID lines only, then keep a gift row only
+       when the cart genuinely earned that slot. Surviving gift rows are priced
+       at 0 by buildCheckoutItems — a tampered localStorage cart cannot buy
+       anything and cannot mint a gift it did not earn.
+       ------------------------------------------------------------------ */
+    const promotion = await loadActivePromotion();
+    let giftLines: typeof lines = [];
+    let promotionMeta: { id: string; tierIndex: number; giftCount: number; giftValueMinor: number } | null = null;
+
+    if (promotion) {
+      const catByProduct = new Map(products.map((p) => [String(p.id), String((p as any).categoryId ?? "")]));
+      const asCartLines = lines.map((l) => ({
+        key: l.isGift ? `gift:${l.giftPromotionId}:${l.giftTierIndex}:${l.giftSlotKey}` : `${l.productId}:${l.variantId || 0}`,
+        productId: l.productId, variantId: l.variantId, slug: "", title: "", price: 0,
+        qty: l.qty, stock: 0, isGift: !!l.isGift, promotionId: l.giftPromotionId,
+        tierIndex: l.giftTierIndex, slotKey: l.giftSlotKey,
+      }));
+
+      /* Rebuild the shopper's gift choices from the rows themselves — the exact
+         slot→variant map the engine needs, without trusting a separate payload. */
+      const selections: GiftSelectionMap = {};
+      for (const l of lines) {
+        if (!l.isGift || l.variantId == null || l.giftTierIndex == null || !l.giftSlotKey) continue;
+        selections[slotSelectionKey(l.giftTierIndex, l.giftSlotKey)] = { productId: String(l.productId), variantId: String(l.variantId) };
+      }
+
+      const evaluation = evaluateCart({
+        promotion, lines: asCartLines as any, selections,
+        categories: Object.fromEntries(catByProduct),
+      });
+
+      const granted = new Set(
+        evaluation.grantedGifts.map((g) => `${g.tierIndex}:${g.slotKey}:${g.productId}:${g.variantId}`),
+      );
+
+      for (const l of lines) {
+        if (!l.isGift) continue;
+        const key = `${l.giftTierIndex}:${l.giftSlotKey}:${l.productId}:${l.variantId}`;
+        if (granted.has(key)) giftLines.push(l);
+        else console.warn("[checkout] gift row dropped (not earned):", key);
+      }
+
+      const keptGifts = evaluation.grantedGifts.filter((g) =>
+        giftLines.some((l) => String(l.productId) === g.productId && String(l.variantId) === g.variantId && l.giftTierIndex === g.tierIndex && l.giftSlotKey === g.slotKey),
+      );
+      if (keptGifts.length) {
+        promotionMeta = {
+          id: promotion.id,
+          tierIndex: Math.max(...keptGifts.map((g) => g.tierIndex)),
+          giftCount: keptGifts.length,
+          giftValueMinor: keptGifts.reduce((sum, g) => sum + g.valueMinor, 0),
+        };
+      }
+    } else {
+      /* No live promotion → any gift row in the payload is stale. */
+      for (const l of lines) if (l.isGift) console.warn("[checkout] gift row dropped (no live promotion)");
+    }
+
+    const paidLines = lines.filter((l) => !l.isGift);
+    if (!paidLines.length) return NextResponse.json({ error: "Your cart has no payable items" }, { status: 400 });
+    const { items: orderItems, subtotal } = buildCheckoutItems([...paidLines, ...giftLines], products);
     const risk = await assessRisk({ phone: cleanPhone, address, ip }, s.fraud);
     if (risk.level === "CRITICAL") return NextResponse.json({ error: "We're unable to accept this order. Please contact support." }, { status: 403 });
 
@@ -121,10 +188,22 @@ export async function POST(req: Request) {
           paymentMethod, paymentStatus: "PENDING", status: risk.level === "HIGH" ? "ON_HOLD" : "PENDING",
           riskLevel: risk.level, riskFlags: risk.flags.join(", ") || null,
           source: recovered ? "Recovered" : detectSource(attribution), attribution: Object.keys(attribution).length ? JSON.stringify(attribution) : null,
-          channel: deployChannel(), ip, customerId: customer.id, items: { create: orderItems },
+          channel: deployChannel(), ip, customerId: customer.id, items: { create: orderItems as any },
         },
       });
       const finalOrder = await tx.order.update({ where: { id: order.id }, data: { code: orderCode(order.id) } });
+      /* Promotion bookkeeping: one usage row per order + the running counter the
+         engine reads for `maxOrders`. Kept inside the transaction so a failed
+         order never counts against the offer. */
+      if (promotionMeta) {
+        await tx.promotionUsage.create({
+          data: {
+            promotionId: promotionMeta.id, orderId: finalOrder.id, tierIndex: promotionMeta.tierIndex,
+            giftCount: promotionMeta.giftCount, giftValueMinor: promotionMeta.giftValueMinor,
+          },
+        });
+        await tx.promotion.update({ where: { id: promotionMeta.id }, data: { usedOrders: { increment: 1 } } });
+      }
       // Keep the store's delivery-time inventory policy: no stock decrement at checkout.
       await tx.abandonedCheckout.updateMany({ where: { OR: [{ phone: cleanPhone }, ...(draft ? [{ id: draft.id }] : []), ...(recovered ? [{ id: recovered.row.id }] : [])], checkoutStatus: "OPEN" }, data: { checkoutStatus: "CONVERTED", recovered: true, convertedOrderId: finalOrder.id } });
       return { order: finalOrder, appliedCode, reused: false };

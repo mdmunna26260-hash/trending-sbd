@@ -50,7 +50,7 @@ export default async function CustomerInvoice(
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: "2px solid #111", paddingBottom: 18, flexWrap: "wrap", gap: 12 }}>
         <div>
-          <div className="brand-wm" style={{ fontSize: 26, letterSpacing: "0.25em", fontWeight: 700 }}>{store.name || "SINZO"}</div>
+          <div className="brand-wm" style={{ fontSize: 26, letterSpacing: "0.25em", fontWeight: 700 }}>{store.name || "TRENDING'S"}</div>
           <div style={{ fontSize: 12, color: "#555", marginTop: 6 }}>{store.address}</div>
           <div style={{ fontSize: 12, color: "#555" }}>{store.phone} · {store.email}</div>
         </div>
@@ -103,7 +103,7 @@ export default async function CustomerInvoice(
       </div>
 
       <div style={{ marginTop: 34, fontSize: 12, color: "#555", textAlign: "center", borderTop: "1px solid #ddd", paddingTop: 16 }}>
-        Thank you for shopping with {store.name || "SINZO"}! · {store.phone}<br />
+        Thank you for shopping with {store.name || "TRENDING'S"}! · {store.phone}<br />
         Returns accepted within 7 days · Support: {store.email}
       </div>
       <script dangerouslySetInnerHTML={{ __html: `document.getElementById("printbtn")?.addEventListener("click", () => window.print());` }} />

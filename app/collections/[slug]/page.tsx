@@ -16,7 +16,7 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   const t = clean(col.title);
   return {
     title: t,
-    description: clean(col.subtitle) || `${t} by ${"SINZO"} — cash on delivery all over Bangladesh.`,
+    description: clean(col.subtitle) || `${t} by ${"TRENDING'S"} — cash on delivery all over Bangladesh.`,
     alternates: { canonical: `/collections/${params.slug}` },
     openGraph: { type: "website", title: t, description: clean(col.subtitle) || "" },
   };

@@ -23,7 +23,7 @@ type Count = {
 const money = (n: number) => "৳" + Math.round(n || 0).toLocaleString("en-IN");
 const pretty = (wa: string) => (wa || "").replace(/^880/, "0").replace(/\D/g, "");
 
-const SAMPLE = { name: "Rima", store: "Sinzo", link: "https://sinzooffcial.com/l/promo", coupon: "SAVE100", date: "22/09/2026" };
+const SAMPLE = { name: "Rima", store: "TRENDING'S", link: "https://sinzooffcial.com/l/promo", coupon: "SAVE100", date: "22/09/2026" };
 
 export default function NewCampaignClient({ quick, rules, devices, optOuts, bridgeRunning }: {
   quick: string[];

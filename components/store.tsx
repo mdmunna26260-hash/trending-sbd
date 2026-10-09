@@ -124,7 +124,16 @@ export function trackEvent(name: string, data?: Record<string, any>, opts?: { ev
 }
 
 /* ============ Cart (localStorage, guest-friendly) ============ */
-export type CartLine = { key: string; productId: number; variantId?: number; slug: string; title: string; image?: string; price: number; qty: number; size?: string; color?: string; stock: number; sizes?: string[]; preorder?: boolean };
+export type CartLine = {
+  key: string; productId: number; variantId?: number; slug: string; title: string; image?: string;
+  price: number; qty: number; size?: string; color?: string; stock: number; sizes?: string[]; preorder?: boolean;
+  /* ---- free-gift lines (promotion engine) ----
+     key is `gift:<promotionId>:<tierIndex>:<slotKey>`; price is always 0 and the
+     server re-derives all of it at checkout — these fields are display state. */
+  isGift?: boolean; promotionId?: string; tierIndex?: number; slotKey?: string;
+  /** Market price of a gift (display only — the line itself is always free). */
+  giftValue?: number;
+};
 const CART_KEY = "sz_cart_v1";
 
 /* Memory-first cart store: module-level state survives client-side navigation
@@ -145,8 +154,8 @@ function saveCart(c: CartLine[]) {
   try { localStorage.setItem(CART_KEY, JSON.stringify(c)); } catch {}
 }
 
-type CartCtx = { lines: CartLine[]; count: number; subtotal: number; ready: boolean; add: (l: Omit<CartLine, "key">, qty?: number) => void; setQty: (key: string, qty: number) => void; updateLine: (key: string, patch: Partial<CartLine>) => void; remove: (key: string) => void; clear: () => void; replace: (lines: CartLine[]) => void; };
-const EMPTY_CTX: CartCtx = { lines: [], count: 0, subtotal: 0, ready: false, add: () => {}, setQty: () => {}, updateLine: () => {}, remove: () => {}, clear: () => {}, replace: () => {} };
+type CartCtx = { lines: CartLine[]; count: number; subtotal: number; ready: boolean; add: (l: Omit<CartLine, "key">, qty?: number) => void; setQty: (key: string, qty: number) => void; updateLine: (key: string, patch: Partial<CartLine>) => void; remove: (key: string) => void; clear: () => void; replace: (lines: CartLine[]) => void; /** promotion gifts — key is supplied by the engine, never merged */ addGiftLine: (line: CartLine) => void; removeKeys: (keys: string[]) => void; };
+const EMPTY_CTX: CartCtx = { lines: [], count: 0, subtotal: 0, ready: false, add: () => {}, setQty: () => {}, updateLine: () => {}, remove: () => {}, clear: () => {}, replace: () => {}, addGiftLine: () => {}, removeKeys: () => {} };
 const Ctx = createContext<CartCtx>(EMPTY_CTX);
 export function useCart() { return useContext(Ctx); }
 
@@ -191,9 +200,21 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const remove: CartCtx["remove"] = (key) => commit(loadCart().filter((x) => x.key !== key));
   const clear = () => commit([]);
   const replace = (items: CartLine[]) => commit(items.map(l => ({ ...l, key: `${l.productId}:${l.variantId || 0}` })));
+  /* A gift is one row per (tier, slot): the engine owns the key, so this never
+     merges with a paid line and re-picking a different size replaces the row. */
+  const addGiftLine: CartCtx["addGiftLine"] = (line) => {
+    const c = loadCart().filter((x) => x.key !== line.key);
+    c.push({ ...line, qty: 1 });
+    commit(c);
+  };
+  const removeKeys: CartCtx["removeKeys"] = (keys) => {
+    if (!keys.length) return;
+    const drop = new Set(keys);
+    commit(loadCart().filter((x) => !drop.has(x.key)));
+  };
   const count = lines.reduce((s, l) => s + l.qty, 0);
-  const subtotal = lines.reduce((s, l) => s + l.qty * l.price, 0);
-  return <Ctx.Provider value={{ lines, count, subtotal, ready, add, setQty, updateLine, remove, clear, replace }}>{children}</Ctx.Provider>;
+  const subtotal = lines.reduce((s, l) => s + (l.isGift ? 0 : l.qty * l.price), 0);
+  return <Ctx.Provider value={{ lines, count, subtotal, ready, add, setQty, updateLine, remove, clear, replace, addGiftLine, removeKeys }}>{children}</Ctx.Provider>;
 }
 
 /* ============ Toast ============ */

@@ -70,6 +70,142 @@ async function main() {
     await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "InboxMessage" ("id" SERIAL PRIMARY KEY, "waId" TEXT NOT NULL, "name" TEXT, "direction" TEXT NOT NULL, "body" TEXT NOT NULL, "orderId" INTEGER, "status" TEXT NOT NULL DEFAULT 'ok', "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
     await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "AppLog" ("id" SERIAL PRIMARY KEY, "level" TEXT NOT NULL DEFAULT 'INFO', "kind" TEXT NOT NULL, "message" TEXT NOT NULL, "meta" TEXT, "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP)`).catch(() => {});
     await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "AppLog_kind_createdAt_idx" ON "AppLog"("kind","createdAt")`).catch(() => {});
+    // ── Password reset + OrderItem gift columns ──
+    await db.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "resetToken" TEXT`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "User" ADD COLUMN IF NOT EXISTS "resetTokenExpires" TIMESTAMP(3)`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "isGift" BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "giftPromotionId" TEXT`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "giftTierIndex" INTEGER`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "OrderItem" ADD COLUMN IF NOT EXISTS "giftSlotKey" TEXT`).catch(() => {});
+
+    // ── Promotion & Free-Gift Engine DDL (11 tables, additive) ──
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "Promotion" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "slug" TEXT NOT NULL,
+      "name" TEXT NOT NULL,
+      "description" TEXT,
+      "type" TEXT NOT NULL DEFAULT 'GIFT_TIERS',
+      "status" TEXT NOT NULL DEFAULT 'DRAFT',
+      "priority" INTEGER NOT NULL DEFAULT 0,
+      "startsAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "endsAt" TIMESTAMP(3),
+      "countMode" TEXT NOT NULL DEFAULT 'QUANTITY',
+      "eligibilityScope" TEXT NOT NULL DEFAULT 'ALL_PRODUCTS',
+      "highestTierWins" BOOLEAN NOT NULL DEFAULT true,
+      "lockGrantedGifts" BOOLEAN NOT NULL DEFAULT false,
+      "lockBehavior" TEXT NOT NULL DEFAULT 'KEEP_ALL',
+      "requireGiftSelection" BOOLEAN NOT NULL DEFAULT true,
+      "allowGiftSkipping" BOOLEAN NOT NULL DEFAULT false,
+      "maxGiftsPerOrder" INTEGER,
+      "maxOrders" INTEGER,
+      "usedOrders" INTEGER NOT NULL DEFAULT 0,
+      "config" TEXT NOT NULL DEFAULT '{}',
+      "createdBy" TEXT,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      "updatedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "Promotion_slug_key" ON "Promotion"("slug")`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "Promotion_status_startsAt_idx" ON "Promotion"("status", "startsAt")`).catch(() => {});
+
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "PromotionGiftPool" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "promotionId" TEXT NOT NULL REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "key" TEXT NOT NULL,
+      "label" TEXT NOT NULL,
+      "description" TEXT,
+      "sortOrder" INTEGER NOT NULL DEFAULT 0,
+      "autoFill" BOOLEAN NOT NULL DEFAULT false,
+      "categoryIds" TEXT NOT NULL DEFAULT '[]',
+      "excludeProductIds" TEXT NOT NULL DEFAULT '[]'
+    )`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "PromotionGiftPool" ADD COLUMN IF NOT EXISTS "autoFill" BOOLEAN NOT NULL DEFAULT false`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "PromotionGiftPool" ADD COLUMN IF NOT EXISTS "categoryIds" TEXT NOT NULL DEFAULT '[]'`).catch(() => {});
+    await db.$executeRawUnsafe(`ALTER TABLE "PromotionGiftPool" ADD COLUMN IF NOT EXISTS "excludeProductIds" TEXT NOT NULL DEFAULT '[]'`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PromotionGiftPool_promotionId_key_key" ON "PromotionGiftPool"("promotionId", "key")`).catch(() => {});
+
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "PromotionTier" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "promotionId" TEXT NOT NULL REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "index" INTEGER NOT NULL,
+      "key" TEXT NOT NULL,
+      "label" TEXT NOT NULL,
+      "description" TEXT,
+      "requiredQuantity" INTEGER NOT NULL,
+      "sortOrder" INTEGER NOT NULL DEFAULT 0
+    )`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PromotionTier_promotionId_index_key" ON "PromotionTier"("promotionId", "index")`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PromotionTier_promotionId_key_key" ON "PromotionTier"("promotionId", "key")`).catch(() => {});
+
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "PromotionTierSlot" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "tierId" TEXT NOT NULL REFERENCES "PromotionTier"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "giftPoolId" TEXT NOT NULL REFERENCES "PromotionGiftPool"("id") ON DELETE RESTRICT ON UPDATE CASCADE,
+      "key" TEXT NOT NULL,
+      "label" TEXT NOT NULL,
+      "giftType" TEXT NOT NULL DEFAULT 'CUSTOM',
+      "quantity" INTEGER NOT NULL DEFAULT 1,
+      "sortOrder" INTEGER NOT NULL DEFAULT 0
+    )`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PromotionTierSlot_tierId_key_key" ON "PromotionTierSlot"("tierId", "key")`).catch(() => {});
+
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "PromotionGiftProduct" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "poolId" TEXT NOT NULL REFERENCES "PromotionGiftPool"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "productId" INTEGER NOT NULL REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "variantIds" TEXT NOT NULL DEFAULT '[]',
+      "sortOrder" INTEGER NOT NULL DEFAULT 0,
+      "isActive" BOOLEAN NOT NULL DEFAULT true,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PromotionGiftProduct_poolId_productId_key" ON "PromotionGiftProduct"("poolId", "productId")`).catch(() => {});
+
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "PromotionEligibleProduct" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "promotionId" TEXT NOT NULL REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "productId" INTEGER NOT NULL REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    )`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PromotionEligibleProduct_promotionId_productId_key" ON "PromotionEligibleProduct"("promotionId", "productId")`).catch(() => {});
+
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "PromotionExcludedProduct" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "promotionId" TEXT NOT NULL REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "productId" INTEGER NOT NULL REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "reason" TEXT
+    )`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PromotionExcludedProduct_promotionId_productId_key" ON "PromotionExcludedProduct"("promotionId", "productId")`).catch(() => {});
+
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "PromotionEligibleCategory" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "promotionId" TEXT NOT NULL REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "categoryId" INTEGER NOT NULL REFERENCES "Category"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    )`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PromotionEligibleCategory_promotionId_categoryId_key" ON "PromotionEligibleCategory"("promotionId", "categoryId")`).catch(() => {});
+
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "PromotionExcludedCategory" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "promotionId" TEXT NOT NULL REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "categoryId" INTEGER NOT NULL REFERENCES "Category"("id") ON DELETE CASCADE ON UPDATE CASCADE
+    )`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PromotionExcludedCategory_promotionId_categoryId_key" ON "PromotionExcludedCategory"("promotionId", "categoryId")`).catch(() => {});
+
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "PromotionExcludedGiftProduct" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "promotionId" TEXT NOT NULL REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "productId" INTEGER NOT NULL REFERENCES "Product"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "reason" TEXT
+    )`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE UNIQUE INDEX IF NOT EXISTS "PromotionExcludedGiftProduct_promotionId_productId_key" ON "PromotionExcludedGiftProduct"("promotionId", "productId")`).catch(() => {});
+
+    await db.$executeRawUnsafe(`CREATE TABLE IF NOT EXISTS "PromotionUsage" (
+      "id" TEXT NOT NULL PRIMARY KEY,
+      "promotionId" TEXT NOT NULL REFERENCES "Promotion"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "orderId" INTEGER NOT NULL REFERENCES "Order"("id") ON DELETE CASCADE ON UPDATE CASCADE,
+      "tierIndex" INTEGER NOT NULL,
+      "giftCount" INTEGER NOT NULL DEFAULT 0,
+      "giftValueMinor" INTEGER NOT NULL DEFAULT 0,
+      "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`).catch(() => {});
+    await db.$executeRawUnsafe(`CREATE INDEX IF NOT EXISTS "PromotionUsage_promotionId_createdAt_idx" ON "PromotionUsage"("promotionId", "createdAt")`).catch(() => {});
     console.log("ensure-db: all DDL done ✓");
   } finally {
     await db.$disconnect();

@@ -4,6 +4,8 @@ import { useEffect, useState } from "react";
 import { useCart, toast } from "@/components/store";
 import { imgSrc, imgSrcSet } from "@/components/parts";
 import { checkoutTotals, couponDiscount, nonNegativeAmount } from "@/lib/checkout-pricing";
+import { FEATURES } from "@/lib/features";
+import { ComboOffer } from "@/components/combo-offer";
 
 /* Cart — original clean layout + "Continue Shopping" button on top. */
 export default function CartPage() {
@@ -18,7 +20,9 @@ export default function CartPage() {
     try {
       const c = JSON.parse(document.getElementById("sz-cfg")?.textContent || "{}");
       setCfg({
-        freeT: nonNegativeAmount(c?.shipping?.freeShippingThreshold),
+        /* freeDelivery off (lib/features.ts) ⇒ threshold 0 ⇒ "Add ৳X more for free delivery"
+           note, progress bar ar FREE label ekbare gayeb. Delivery row normal charge dekhabe. */
+        freeT: FEATURES.freeDelivery ? nonNegativeAmount(c?.shipping?.freeShippingThreshold) : 0,
         inside: nonNegativeAmount(c?.shipping?.insideDhaka, 80),
         outside: nonNegativeAmount(c?.shipping?.outsideDhaka, 140),
       });
@@ -33,6 +37,10 @@ export default function CartPage() {
     shipping: { insideDhaka: cfg.inside, outsideDhaka: cfg.outside, freeShippingThreshold: FREE_T },
   });
   const itemCount = lines.reduce((s, l) => s + (l.qty || 1), 0);
+  /* Gift rows are free: the offer panel tracks their real market value so the
+     summary can show what the shopper is getting on top of the subtotal. */
+  const giftCount = lines.filter((l) => l.isGift).length;
+  const giftValue = lines.filter((l) => l.isGift).reduce((s, l) => s + Number(l.giftValue || 0), 0);
 
   const bump = (l: any, q: number) => {
     if (q < 1) { remove(l.key); toast("Item removed from cart"); return; }
@@ -131,9 +139,18 @@ export default function CartPage() {
             <div className="cart-row" key={l.key}>
               <Link href={"/products/" + l.slug}><img src={imgSrc(l.image, 200) || l.image} srcSet={imgSrcSet(l.image, [200, 300])} sizes="100px" alt={l.title} loading="lazy" decoding="async" width={100} height={126} /></Link>
               <div>
-                <div className="t"><Link href={"/products/" + l.slug}>{l.title}</Link></div>
-                <div className="v">{[l.color].filter(Boolean).join(" · ")}</div>
-                <div className="v">৳{Number(l.price || 0).toLocaleString("en-IN")}</div>
+                <div className="t">
+                  {l.isGift && <span className="gift-tag">Free gift</span>}
+                  <Link href={"/products/" + l.slug}>{l.title}</Link>
+                </div>
+                <div className="v">{[l.size, l.color].filter(Boolean).join(" · ")}</div>
+                <div className="v">
+                  {l.isGift ? <><s className="gift-was">৳{Number(l.giftValue || 0).toLocaleString("en-IN")}</s> <b className="gift-free">FREE</b></> : <>৳{Number(l.price || 0).toLocaleString("en-IN")}</>}
+                </div>
+                {l.isGift ? (
+                  <div className="gift-note">Added automatically by the offer · swap or remove it above</div>
+                ) : (
+                <>
                 <div style={{ marginTop: 10, display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
                   <span style={{ fontSize: 11, letterSpacing: ".14em", textTransform: "uppercase", color: "var(--muted)" }}>Size</span>
                   <select className="cart-size-select" value={l.size || ""} onChange={(e) => changeSize(l, e.target.value)} aria-label="Change size" disabled={sizing === l.key} style={sizing === l.key ? { opacity: .6 } : undefined}>
@@ -152,12 +169,18 @@ export default function CartPage() {
                   {l.stock != null && l.stock <= 5 && <span style={{ fontSize: 11, color: "var(--danger)" }}>only {l.stock} left</span>}
                 </div>
                 <button type="button" className="rm" onClick={() => { remove(l.key); toast("Item removed from cart"); }}>Remove</button>
+                </>
+                )}
               </div>
-              <div style={{ fontWeight: 600 }}>৳{(Number(l.price || 0) * (l.qty || 1)).toLocaleString("en-IN")}</div>
+              <div style={{ fontWeight: 600 }}>{l.isGift ? <span className="gift-free">FREE</span> : <>৳{(Number(l.price || 0) * (l.qty || 1)).toLocaleString("en-IN")}</>}</div>
             </div>
           ))}
         </div>
-        <aside className="summary">
+        <div className="cart-aside">
+          {/* Free-gift section sits directly above the order summary: it is the
+              one thing a shopper must act on before the totals mean anything. */}
+          <ComboOffer />
+          <aside className="summary">
           <h3>Order Summary</h3>
           {FREE_T > 0 && <>
             <div className="freeship-note">
@@ -166,6 +189,7 @@ export default function CartPage() {
             <div className="freebar"><i style={{ width: (ship === 0 ? 100 : Math.min(100, (effectiveTotal / FREE_T) * 100)) + "%" }} /></div>
           </>}
           <div className="sum-row"><span>Subtotal ({itemCount} items)</span><span>৳{subtotal.toLocaleString("en-IN")}</span></div>
+          {giftValue > 0 && <div className="sum-row"><span>Free gifts ({giftCount})</span><span className="gift-free">−৳{giftValue.toLocaleString("en-IN")}</span></div>}
           {discount > 0 && <div className="sum-row" style={{ color: "var(--ok)" }}><span>Discount ({applied.code})</span><span>−৳{discount.toLocaleString("en-IN")}</span></div>}
           <div className="sum-row"><span>Delivery (est.)</span><span>{(applied?.freeship || ship === 0) ? "Free" : "৳" + ship}</span></div>
           <div className="sum-row total"><span>Total</span><span>৳{total.toLocaleString("en-IN")}</span></div>
@@ -179,7 +203,8 @@ export default function CartPage() {
           <div className="trust">
             <span>🔒 Secure checkout</span><span>💵 Cash on Delivery</span><span>↩ 7-day returns</span>
           </div>
-        </aside>
+          </aside>
+        </div>
       </div>
     </div>
   );

@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart, trackEvent, toast } from "@/components/store";
+import { ComboPdpHint } from "@/components/combo-offer";
 import { imgSrc, imgSrcSet, PDP_WIDTHS, PDP_SIZES, PDP_SRC_WIDTH, THUMB_WIDTHS } from "@/components/parts";
 import { warmImage, warmWhenIdle } from "@/components/img-warm";
 import { trackRecentlyViewed } from "@/components/recently-viewed";
@@ -468,6 +469,8 @@ export default function ProductPageClient({ product, sizeChartHtml, sizeChartIma
           {!preorder && avail <= 0 && (
             <PdpWaitlist productId={product.id} variantId={activeVariant?.id ?? null} title={product.title} />
           )}
+
+          <ComboPdpHint />
 
           <div className="pdp-actions">
             <div className="pdp-buy-row">

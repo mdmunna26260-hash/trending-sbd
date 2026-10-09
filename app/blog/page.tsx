@@ -12,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Journal",
   description:
-    "Buying guides, sizing help and care tips from SINZO — the questions customers ask us on WhatsApp, written down properly before you order.",
+    "Buying guides, sizing help and care tips from TRENDING'S — the questions customers ask us on WhatsApp, written down properly before you order.",
   alternates: { canonical: "/blog" },
 };
 

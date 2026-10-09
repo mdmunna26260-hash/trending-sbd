@@ -24,7 +24,7 @@ export default async function Slip(props: { params: Promise<{ id: string }>; sea
       <div className="slip">
         <div className="slip-head">
           <div>
-            <div className="slip-brand">SINZO</div>
+            <div className="slip-brand">TRENDING&apos;S</div>
             <div className="slip-sub">Packing slip</div>
           </div>
           <img src={qr} alt={"QR " + o.code} width={110} height={110} />

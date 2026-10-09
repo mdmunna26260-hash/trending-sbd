@@ -92,7 +92,7 @@ export default function CatalogClient({ categories, collections, products }: any
                     <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
                       {c.image
                         ? <img src={c.image.startsWith("/api/media") ? c.image + "/w80" : c.image} width={30} height={30} alt="" style={{ borderRadius: 4, objectFit: "cover", background: "#eee" }} />
-                        : <div style={{ width: 30, height: 30, borderRadius: 4, background: "#f0eeea", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>🖼</div>}
+                        : <div style={{ width: 30, height: 30, borderRadius: 4, background: "rgba(122,152,255,.12)", display: "flex", alignItems: "center", justifyContent: "center", fontSize: 13 }}>🖼</div>}
                       <b>{c.name}</b>
                     </div>
                   </td>
@@ -109,7 +109,7 @@ export default function CatalogClient({ categories, collections, products }: any
           </div>
           <div className="acard-b" style={{ borderTop: "1px solid #e4e7ec" }}>
             {editCatId && (
-              <div style={{ marginBottom: 12, padding: 12, borderRadius: 8, background: "#f8f9fa", border: "1px solid #e0e0e0" }}>
+              <div style={{ marginBottom: 12, padding: 12, borderRadius: 8, background: "rgba(122,152,255,.07)", border: "1px solid rgba(122,152,255,.16)" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 8 }}>
                   <div style={{ fontSize: 12.5, fontWeight: 600 }}>Upload image for "{categories.find((c) => c.id === editCatId)?.name || "#" + editCatId}"</div>
                   <button className="abtn sm" onClick={() => setEditCatId(null)}>✕ Close</button>

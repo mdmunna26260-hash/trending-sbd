@@ -22,7 +22,7 @@ export function looksLikeEmail(s: string): boolean {
 
 export function waitlistMessage(productTitle: string, variant?: string | null, url?: string): string {
   const v = variant ? ` (${variant})` : "";
-  return `Sinzo: apni je "${productTitle}"${v} er jonno wait korechilen — seta abar stock-e esheche! Take a look: ${url || "https://sinzooffcial.com"}`;
+  return `TRENDING'S: apni je "${productTitle}"${v} er jonno wait korechilen — seta abar stock-e esheche! Take a look: ${url || "https://sinzooffcial.com"}`;
 }
 
 export type NotifyResult = { ok: boolean; channel: "whatsapp" | "sms" | "email" | "manual"; error?: string; link?: string };
@@ -57,12 +57,12 @@ export async function notifyWaitlistEntry(entry: WaitlistEntry, s: SettingsMap):
   // email
   try {
     const smtp = (s as any).notifications?.smtp || {};
-    if (!smtp.host) return { ok: false, channel: "manual", error: "SMTP is not configured", link: `mailto:${contact}?subject=${encodeURIComponent("Back in stock — Sinzo")}&body=${encodeURIComponent(msg)}` };
+    if (!smtp.host) return { ok: false, channel: "manual", error: "SMTP is not configured", link: `mailto:${contact}?subject=${encodeURIComponent("Back in stock — TRENDING'S")}&body=${encodeURIComponent(msg)}` };
     const nodemailer = await import("nodemailer");
     const t = nodemailer.createTransport({ host: smtp.host, port: Number(smtp.port) || 587, secure: Number(smtp.port) === 465, auth: smtp.user ? { user: smtp.user, pass: smtp.pass } : undefined });
     await t.sendMail({
       from: smtp.from || smtp.user, to: contact,
-      subject: `Back in stock — ${product?.title || "Sinzo"}`,
+      subject: `Back in stock — ${product?.title || "TRENDING'S"}`,
       text: msg, html: `<p>${msg.replace(url, `<a href="${url}">${url}</a>`)}</p>`,
     });
     await markNotified(entry.id);
@@ -71,7 +71,7 @@ export async function notifyWaitlistEntry(entry: WaitlistEntry, s: SettingsMap):
   } catch (e: any) {
     const error = String(e?.message || e).slice(0, 160);
     await logApp("ERROR", "MAIL", `waitlist #${entry.id} email failed: ${error}`);
-    return { ok: false, channel: "manual", error, link: `mailto:${contact}?subject=${encodeURIComponent("Back in stock — Sinzo")}&body=${encodeURIComponent(msg)}` };
+    return { ok: false, channel: "manual", error, link: `mailto:${contact}?subject=${encodeURIComponent("Back in stock — TRENDING'S")}&body=${encodeURIComponent(msg)}` };
   }
 }
 

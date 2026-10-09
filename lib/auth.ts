@@ -2,6 +2,7 @@ import crypto from "crypto";
 import { db } from "./db";
 
 import { ALLOW_URL_TOKEN, SESSION_SECRET, encodeSessionPayload, decodeSessionPayload, cookieToken } from "./session-token";
+import { FEATURES } from "./features";
 
 const IS_PROD = process.env.NODE_ENV === "production";
 
@@ -9,10 +10,10 @@ export type SessionUser = { id: number; email: string; name: string; role: strin
 
 export const ROLE_PERMS: Record<string, string[]> = {
   SUPER_ADMIN: ["*"],
-  ADMIN: ["products", "orders", "customers", "coupons", "reviews", "marketing", "tracking", "settings", "users", "audit", "categories", "collections"],
+  ADMIN: ["products", "orders", "customers", "coupons", "reviews", "marketing", "tracking", "settings", "users", "audit", "categories", "collections", "promotions"],
   ORDER_MANAGER: ["orders", "customers"],
   PRODUCT_MANAGER: ["products", "categories", "collections", "inventory"],
-  MARKETING: ["coupons", "marketing", "tracking"],
+  MARKETING: ["coupons", "marketing", "tracking", "promotions"],
   SUPPORT: ["orders", "customers", "reviews"],
 };
 export function can(user: SessionUser | null, perm: string): boolean {
@@ -86,7 +87,10 @@ export function rateLimit(key: string, max: number, windowMs: number): boolean {
 export function adminLanding(user: SessionUser): string {
   if (can(user, "orders")) return "/admin/dashboard";
   if (can(user, "products")) return "/admin/products";
-  if (can(user, "marketing")) return "/admin/marketing";
+  /* Engagement hidden thakle /admin/marketing-o hidden — MARKETING role er user ke tar porer
+     allowed page e pathai, noile login → hidden page → ferot login loop hoto. */
+  if (FEATURES.adminEngagement && can(user, "marketing")) return "/admin/marketing";
+  if (can(user, "coupons")) return "/admin/coupons";
   return "/admin/login";
 }
 

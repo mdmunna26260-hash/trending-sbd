@@ -5,6 +5,7 @@ import { createToken, sessionCookie, rateLimit, logAudit, verifySessionTicket } 
 import { verifyTotp, hashRecoveryCode } from "@/lib/totp";
 import { getClientIp } from "@/lib/ua";
 import { ALLOW_URL_TOKEN } from "@/lib/session-token";
+import { FEATURES } from "@/lib/features";
 
 export const dynamic = "force-dynamic";
 
@@ -14,6 +15,8 @@ class LoginError extends Error {}
    A read/modify/write JSON list allowed two concurrent requests to reuse the
    same ticket/code. A unique Setting key is an atomic single-use claim. */
 export async function POST(req: Request) {
+  /* 2FA hidden (lib/features.ts) — ei step ar nei, tai purono ticket diye keu dhukte parbe na. */
+  if (!FEATURES.adminTwoFactor) return NextResponse.json({ error: "Two-factor is turned off" }, { status: 403 });
   const ip = getClientIp(req);
   if (!rateLimit("login2fa:" + ip, 20, 10 * 60 * 1000)) {
     return NextResponse.json({ error: "Too many attempts. Try again in a few minutes." }, { status: 429 });

@@ -34,10 +34,25 @@ test('public settings no longer expose a retired gift-wrap fee', () => {
   assert.equal(exposed.checkout.codEnabled, true);
   assert.equal(Object.hasOwn(exposed.checkout, 'giftWrapFee'), false);
 });
-test('free shipping applies to the discounted subtotal and free-shipping coupons', () => {
-  const input = { subtotal: 1000, discount: 100, area: 'INSIDE_DHAKA', shipping: { freeShippingThreshold: 1000 } };
-  assert.equal(pricing.checkoutTotals(input).deliveryFee, 80);
-  assert.equal(pricing.checkoutTotals({ ...input, freeship: true }).deliveryFee, 0);
+test('freeDelivery OFF: threshold ar freeship coupon dutoi ignore — delivery charge always lage', () => {
+  const input = { subtotal: 1000, discount: 100, area: 'INSIDE_DHAKA', shipping: { freeShippingThreshold: 1000, insideDhaka: 80 } };
+  assert.equal(pricing.checkoutTotals(input).deliveryFee, 80, 'threshold ignore hobe');
+  assert.equal(pricing.checkoutTotals({ ...input, freeship: true }).deliveryFee, 80, 'coupon freeship ignore hobe');
+  /* boro order — age ৳5000 er upore free hoto, ekhon fee lage */
+  const big = { subtotal: 6000, area: 'INSIDE_DHAKA', shipping: { freeShippingThreshold: 5000, insideDhaka: 80 } };
+  assert.equal(pricing.checkoutTotals(big).deliveryFee, 80);
+  assert.equal(pricing.checkoutTotals(big).total, 6080);
+  /* bahirer Dhaka — nijer fee */
+  assert.equal(pricing.checkoutTotals({ ...big, area: 'OUTSIDE_DHAKA', shipping: { freeShippingThreshold: 5000, outsideDhaka: 140 } }).deliveryFee, 140);
+});
+
+test('freeDelivery ON (mock): switch ta abar on korle purono behaviour ferot ashe — restore path jinda ache', () => {
+  const on = loader({ './features': { FEATURES: { freeDelivery: true } } })('lib/checkout-pricing.ts');
+  const input = { subtotal: 1000, discount: 100, area: 'INSIDE_DHAKA', shipping: { freeShippingThreshold: 1000, insideDhaka: 80 } };
+  assert.equal(on.checkoutTotals(input).deliveryFee, 80, 'discounted subtotal 900 < threshold 1000');
+  assert.equal(on.checkoutTotals({ ...input, freeship: true }).deliveryFee, 0, 'freeship coupon kaj kore');
+  const big = { subtotal: 6000, area: 'INSIDE_DHAKA', shipping: { freeShippingThreshold: 5000, insideDhaka: 80 } };
+  assert.equal(on.checkoutTotals(big).deliveryFee, 0, 'threshold puro hoyeche → free');
 });
 test('coupon discounts are recomputed, capped to the subtotal and rounded', () => {
   assert.equal(pricing.couponDiscount(100, { type: 'fixed', value: 500 }), 100);

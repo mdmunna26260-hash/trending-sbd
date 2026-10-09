@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
 import { getCfg, setTrackingPhone } from "@/components/store";
+import { FEATURES } from "@/lib/features";
 
 const GOOGLE_ERRORS: Record<string, string> = {
   google_not_configured: "Google login ekhono configure kora hoy nai — admin panel e Client ID/Secret dite hobe.",
@@ -87,7 +88,7 @@ export default function CustomerLoginPage() {
               {busy ? (mode === "login" ? "Signing in…" : "Creating account…") : mode === "login" ? "Sign In" : "Create Account"}
             </span>
           </button>
-          {googleOn && (
+          {FEATURES.googleLogin && googleOn && (
             <>
               <div style={{ display: "flex", alignItems: "center", gap: 12, color: "var(--muted)", fontSize: 11, letterSpacing: ".16em", textTransform: "uppercase" }}>
                 <span style={{ flex: 1, height: 1, background: "var(--line)" }} />or<span style={{ flex: 1, height: 1, background: "var(--line)" }} />

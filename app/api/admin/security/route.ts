@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FEATURES } from "@/lib/features";
 import QRCode from "qrcode";
 import { db } from "@/lib/db";
 import { requirePerm } from "@/lib/admin-guard";
@@ -40,12 +41,16 @@ export async function POST(req: Request) {
   await ensureExtraTables().catch(() => {});
   const b = await req.json().catch(() => ({}));
   const action = String(b.action || "");
+  /* 2FA hidden (lib/features.ts) — UI nei, tai enrollment/disable action gulo-o bondho. */
+  if (!FEATURES.adminTwoFactor && ["setup", "enable", "disable", "recovery"].includes(action)) {
+    return NextResponse.json({ error: "Two-factor is turned off" }, { status: 403 });
+  }
   const me = await db.user.findUnique({ where: { id: g.user.id } });
   if (!me) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
   if (action === "setup") {
     const secret = newSecret();
-    const url = otpauthUrl(secret, me.email, "SINZO Admin");
+    const url = otpauthUrl(secret, me.email, "TRENDING'S Admin");
     const qr = await QRCode.toDataURL(url, { margin: 1, width: 220 });
     return NextResponse.json({ ok: true, secret, otpauth: url, qr, note: "Secret save hoy ni — code verify korle save hobe." });
   }

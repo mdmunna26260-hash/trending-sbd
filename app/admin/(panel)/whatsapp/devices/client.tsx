@@ -160,7 +160,7 @@ export default function WaDevices() {
         <div className="acard-h"><h3>Add a number</h3></div>
         <div className="acard-b" style={{ display: "flex", gap: 10, flexWrap: "wrap", alignItems: "end" }}>
           <div className="af" style={{ minWidth: 240, flex: 1 }}><label>Name</label>
-            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="Sinzo Support / Sinzo Offers" />
+            <input value={newName} onChange={(e) => setNewName(e.target.value)} placeholder="TRENDING'S Support / TRENDING'S Offers" />
           </div>
           <button className="abtn primary" disabled={!newName.trim() || busy === "add"} onClick={async () => { await act({ action: "add", name: newName.trim() }, "add"); setNewName(""); }}>
             {busy === "add" ? "…" : "Add device"}

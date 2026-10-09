@@ -77,7 +77,7 @@ export async function sendAbandonedRecoveryEmails(options: { automatic?: boolean
     auth: { user: cfg.user, pass: cfg.pass }, connectionTimeout: 15_000, greetingTimeout: 10_000, socketTimeout: 20_000,
     disableFileAccess: true, disableUrlAccess: true,
   });
-  const brand = String(s.store?.name || "SINZO");
+  const brand = String(s.store?.name || "TRENDING'S");
   const coupon = typeof s.marketing?.recoveryCoupon === "string" ? s.marketing.recoveryCoupon.trim().toUpperCase() : null;
   try {
     for (const item of rows) {

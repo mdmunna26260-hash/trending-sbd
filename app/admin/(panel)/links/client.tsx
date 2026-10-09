@@ -1,6 +1,7 @@
 "use client";
 import { afetch } from "@/lib/afetch";
 import { useEffect, useMemo, useState } from "react";
+import { FEATURES } from "@/lib/features";
 
 type Saved = { name: string; url: string; at: string };
 
@@ -113,7 +114,7 @@ export default function LinksClient({ siteUrl, products, posts }: { siteUrl: str
               <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                 <button className="abtn primary" onClick={() => copy(url)}>Copy link</button>
                 <a className="abtn" href={url} target="_blank" rel="noreferrer">Open</a>
-                <a className="abtn" href={waShare} target="_blank" rel="noreferrer">Share on WhatsApp</a>
+                {FEATURES.adminWhatsapp && <a className="abtn" href={waShare} target="_blank" rel="noreferrer">Share on WhatsApp</a>}
                 <button className="abtn" onClick={save} disabled={busy}>{busy ? "…" : "Save"}</button>
               </div>
             </div>

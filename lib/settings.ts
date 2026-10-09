@@ -1,5 +1,6 @@
 import { unstable_cache, revalidateTag } from "next/cache";
 import { db } from "./db";
+import { FEATURES } from "./features";
 export type SettingsMap = Record<string, any>;
 let cache: { data: SettingsMap; at: number } | null = null;
 const TTL = 3000;
@@ -45,7 +46,9 @@ export function publicSettings(s: SettingsMap) {
       gtmId: s.integrations?.gtmId || process.env.GTM_ID || "",
       // Google (Gmail) login — public id only, the secret never leaves the server
       googleLoginClientId: s.integrations?.googleClientId || process.env.GOOGLE_CLIENT_ID || "",
-      googleLoginEnabled: !!(s.integrations?.googleClientId || process.env.GOOGLE_CLIENT_ID),
+      /* googleLogin switch off (lib/features.ts) → client config-e o false jay, tai button kono
+         surface e render hobe na (login page + jekono future caller). */
+      googleLoginEnabled: FEATURES.googleLogin && !!(s.integrations?.googleClientId || process.env.GOOGLE_CLIENT_ID),
     },
     maintenance: s.maintenance,
   };

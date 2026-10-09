@@ -57,7 +57,7 @@ export default function SmsComposer({ templates, configured }: { templates: { id
       </div>
       <div className="af">
         <label>Message</label>
-        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} maxLength={600} placeholder="Sinzo: apnar order {code} confirm hoyeche…" style={{ resize: "vertical" }} />
+        <textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={4} maxLength={600} placeholder="TRENDING'S: apnar order {code} confirm hoyeche…" style={{ resize: "vertical" }} />
         <div style={{ fontSize: 11.5, color: "var(--muted)", marginTop: 4 }}>
           {message.length} characters · {parts} SMS part{parts > 1 ? "s" : ""}{bangla ? " (Bangla = 70 chars/part)" : ""}
           {" · "}placeholders: {"{name} {code} {amount} {courier} {tracking}"}

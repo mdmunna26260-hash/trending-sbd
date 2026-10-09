@@ -25,7 +25,7 @@ export async function sendReviewRequest(orderId: number, s: SettingsMap, opts: {
   const product = productId ? await db.product.findUnique({ where: { id: productId }, select: { slug: true, title: true } }) : null;
   const base = (s as any).seo?.siteUrl || process.env.NEXT_PUBLIC_SITE_URL || "https://sinzooffcial.com";
   const link = product ? `${base}/products/${product.slug}#reviews` : `${base}/account`;
-  const msg = `Sinzo: ${order.name}, apnar order ${order.code} deliver hoyeche. Ekta chhoto review dile amader onek help hoy — 1 minute: ${link}`;
+  const msg = `TRENDING'S: ${order.name}, apnar order ${order.code} deliver hoyeche. Ekta chhoto review dile amader onek help hoy — 1 minute: ${link}`;
 
   let channel: ReviewRequestResult["channel"];
   let error = "";

@@ -15,7 +15,7 @@ export default function InvoicePhoneForm({ code }: { code: string }) {
   };
   return (
     <div style={{ maxWidth: 420, margin: "60px auto", padding: "0 20px", fontFamily: "Arial, sans-serif", color: "#111", textAlign: "center" }}>
-      <div className="brand-wm" style={{ fontSize: 26, letterSpacing: "0.25em", marginBottom: 8 }}>SINZO</div>
+      <div className="brand-wm" style={{ fontSize: 26, letterSpacing: "0.25em", marginBottom: 8 }}>TRENDING&apos;S</div>
       <div style={{ fontSize: 13, color: "#666", marginBottom: 24 }}>Invoice · {code}</div>
       <div style={{ background: "#faf9f7", border: "1px solid #e5e1da", borderRadius: 10, padding: 24, textAlign: "left" }}>
         <div style={{ fontWeight: 700, fontSize: 15, marginBottom: 6 }}>Verify to view invoice</div>

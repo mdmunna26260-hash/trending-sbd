@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { getSettings, publicSettings } from "@/lib/settings";
 import { readPolicy } from "@/lib/policy";
 import { getCategories } from "@/lib/catalog";
+import { FEATURES } from "@/lib/features";
 import { Header, Footer, Announcement } from "@/components/chrome";
 import { ProductCard } from "@/components/parts";
 
@@ -28,7 +29,7 @@ export async function generateMetadata(props: { params: Promise<{ slug: string }
   // double space and into og:title; and the share image must be the w1200 variant,
   // not the full-resolution original (Facebook crops, mobile users download ~1 MB).
   const title = clean(p.title);
-  const desc = clean(p.shortDesc || p.description || "").slice(0, 155) || `${title} — SINZO. Cash on delivery all over Bangladesh.`;
+  const desc = clean(p.shortDesc || p.description || "").slice(0, 155) || `${title} — TRENDING'S. Cash on delivery all over Bangladesh.`;
   const img = p.images?.[0]?.url;
   const share = img ? (/^\/api\/media\/[a-z0-9]+$/i.test(img) ? `${img}/w1200` : img) : undefined;
   return {
@@ -194,7 +195,7 @@ export default async function PDP(props: { params: Promise<{ slug: string }>; se
     image: (p.images || []).map((i) => absImg(i.url)).filter(Boolean).slice(0, 8),
     sku: p.sku || undefined,
     url: siteBase + "/products/" + p.slug,
-    brand: { "@type": "Brand", name: s.store?.name || "SINZO" },
+    brand: { "@type": "Brand", name: s.store?.name || "TRENDING'S" },
     offers: {
       "@type": "Offer",
       priceCurrency: "BDT",
@@ -290,7 +291,7 @@ export default async function PDP(props: { params: Promise<{ slug: string }>; se
         {/* The Delivery row reads the same admin shipping fields the checkout uses (with the same
             fallback strings), so the PDP can never contradict what the buyer pays or waits for. */}
         <ProductPageClient
-          policies={{ inside: s.shipping?.estimateInside, outside: s.shipping?.estimateOutside, freeAt: s.shipping?.freeShippingThreshold || 0 }}
+          policies={{ inside: s.shipping?.estimateInside, outside: s.shipping?.estimateOutside, freeAt: FEATURES.freeDelivery ? s.shipping?.freeShippingThreshold || 0 : 0 }}
           sizeChartImage={p.sizeChartImage || null}
           soldCount={p.soldCount ?? null}
           saleEnds={p.saleEnds ? p.saleEnds.toISOString() : null}

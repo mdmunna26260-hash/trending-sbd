@@ -6,7 +6,7 @@ import SegmentedProgress from "./segmented-progress";
 
 type Img = { url: string; alt: string };
 
-/* Premium mobile swipe gallery (PacSun-style interaction, SINZO identity):
+/* Premium mobile swipe gallery (PacSun-style interaction, TRENDING'S identity):
    - Track follows the finger 1:1 (translate3d, GPU)
    - Release: momentum decides next/previous; short drags spring back
    - 320ms cubic-bezier slide, no library

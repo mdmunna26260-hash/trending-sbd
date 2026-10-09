@@ -82,7 +82,7 @@ export async function broadcastBodyFor(row: any, r: { name?: string | null }, s:
   const shortUrl = slug ? `${site}/l/${slug}` : "";
   const body = renderTemplate(String(row.body || ""), {
     name: r.name || "apni",
-    store: (s as any)?.store?.name || "Sinzo",
+    store: (s as any)?.store?.name || "TRENDING'S",
     link: shortUrl || `${site}/products`,
     coupon: row.couponCode || rules.couponCode || "",
     date: new Date().toLocaleDateString("en-GB"),

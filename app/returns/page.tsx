@@ -3,6 +3,7 @@ import { getSettings, publicSettings } from "@/lib/settings";
 import { getCategories } from "@/lib/catalog";
 import { readPolicy } from "@/lib/policy";
 import { waLink, telLink } from "@/lib/phone";
+import { FEATURES } from "@/lib/features";
 import Link from "next/link";
 import type { Metadata } from "next";
 
@@ -11,7 +12,7 @@ export const dynamic = "force-dynamic";
 export const metadata: Metadata = {
   title: "Returns & Exchange",
   description:
-    "How to return or exchange a SINZO order: the return window, who pays the return courier, how refunds work for cash-on-delivery orders, and the delivery charges.",
+    "How to return or exchange a TRENDING'S order: the return window, who pays the return courier, how refunds work for cash-on-delivery orders, and the delivery charges.",
   alternates: { canonical: "/returns" },
 };
 
@@ -29,7 +30,9 @@ export default async function ReturnsPage() {
   const cur = store.currencySymbol || "৳";
   const money = (n: any) => cur + Math.round(Number(n) || 0).toLocaleString("en-IN");
   const wa = store.whatsapp ? waLink(store.whatsapp) : "";
-  const freeAt = Number(ship.freeShippingThreshold) || 0;
+  /* freeDelivery off (lib/features.ts) ⇒ freeAt 0 ⇒ "Delivery is free over ৳X" note ar
+     refund-er free-delivery sentence dutoi render hoy na. */
+  const freeAt = FEATURES.freeDelivery ? Number(ship.freeShippingThreshold) || 0 : 0;
 
   const facts = [
     { big: `${pol.returnDays} days`, small: "from the day it reaches you" },
@@ -155,8 +158,7 @@ export default async function ReturnsPage() {
               </p>
               <p>
                 On a change of mind, the delivery charge itself isn&apos;t refunded — that money went to the courier who
-                brought the parcel to you — but you get the full price of the item back. If the delivery was free
-                because your order was over {money(freeAt)}, there is nothing to deduct.
+                brought the parcel to you — but you get the full price of the item back.{freeAt > 0 ? ` If the delivery was free because your order was over ${money(freeAt)}, there is nothing to deduct.` : ""}
               </p>
             </section>
 

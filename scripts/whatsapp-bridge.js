@@ -112,7 +112,7 @@ async function startSession(id, name) {
       auth: state,
       printQRInTerminal: false,
       logger: pino({ level: "silent" }),
-      browser: ["SINZO Commerce", "Chrome", "1.0"],
+      browser: ["TRENDING'S Commerce", "Chrome", "1.0"],
       markOnlineOnConnect: false,
     });
     s.sock = sock;

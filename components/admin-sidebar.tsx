@@ -5,8 +5,10 @@ import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { afetch, withToken } from "@/lib/afetch";
 import { ThemeIconToggle, ThemeSwitchRow } from "./theme-toggle";
+import { isHiddenAdminHref } from "@/lib/features";
+import { FEATURES } from "@/lib/features";
 
-const NAV: { group: string; gicon: string; items: { href: string; label: string; icon: string; badge?: string }[] }[] = [
+const NAV_ALL: { group: string; gicon: string; items: { href: string; label: string; icon: string; badge?: string }[] }[] = [
   { group: "Overview", gicon: "M3 13h8V3H3v10zm10 8h8V11h-8v10zM3 21h8v-6H3v6zM13 9h8V3h-8v6z", items: [
     { href: "/admin/dashboard", label: "Dashboard", icon: "M3 13h8V3H3v10zm10 8h8V11h-8v10zM3 21h8v-6H3v6zM13 9h8V3h-8v6z" },
     { href: "/admin/profit", label: "Profit & Margin", icon: "M23 6l-9.5 9.5-5-5L1 18M17 6h6v6M3 22h18" },
@@ -21,6 +23,7 @@ const NAV: { group: string; gicon: string; items: { href: string; label: string;
     { href: "/admin/catalog", label: "Categories & Collections", icon: "M4 6h16M4 12h16M4 18h10" },
     { href: "/admin/customers", label: "Customers", icon: "M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm14 10v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75" },
     { href: "/admin/coupons", label: "Coupons", icon: "M20 12v6a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2m-5 0 2 2-2 2h-4" },
+    { href: "/admin/promotions", label: "Free gift offers", icon: "M20 12v8H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h12a2 2 0 0 1 2 2v2M4 10h16M12 4v4M9 16h6" },
   ]},
   { group: "Engagement", gicon: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z", items: [
     { href: "/admin/reviews", label: "Reviews", icon: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01z" },
@@ -45,12 +48,19 @@ const NAV: { group: string; gicon: string; items: { href: string; label: string;
     { href: "/admin/links", label: "Campaign links", icon: "M10 13a5 5 0 0 0 7 0l2-2a5 5 0 0 0-7-7l-1 1M14 11a5 5 0 0 0-7 0l-2 2a5 5 0 0 0 7 7l1-1" },
     { href: "/admin/backup", label: "Backup", icon: "M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2zM17 21v-8H7v8M7 3v5h8" },
     { href: "/admin/logs", label: "Logs", icon: "M4 4h16v16H4zM8 8h8M8 12h8M8 16h5" },
-    { href: "/admin/security", label: "Security & 2FA", icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 12l2 2 4-4" },
+    { href: "/admin/security", label: FEATURES.adminTwoFactor ? "Security & 2FA" : "Security", icon: "M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM9 12l2 2 4-4" },
     { href: "/admin/settings", label: "Settings", icon: "M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6zm7.4-3a7.4 7.4 0 0 0-.1-1.2l2-1.6-2-3.4-2.4 1a7.5 7.5 0 0 0-2-1.2L14.5 2h-4l-.4 2.6a7.5 7.5 0 0 0-2 1.2l-2.4 1-2 3.4 2 1.6a7.4 7.4 0 0 0 0 2.4l-2 1.6 2 3.4 2.4-1a7.5 7.5 0 0 0 2 1.2l.4 2.6h4l.4-2.6a7.5 7.5 0 0 0 2-1.2l2.4-1.6c.06-.4.1-.8.1-1.2z" },
     { href: "/admin/users", label: "Team", icon: "M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2M12 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8z" },
     { href: "/admin/audit", label: "Audit Log", icon: "M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" },
   ]},
 ];
+
+/* Hidden features (lib/features.ts) — switch off thakle oi item gulo nav theke chere jay, ar
+   group ta khali hoye gele group header-o gayeb hoy. Code e NAV_ALL puro ache; switch on korlei
+   sob ferot ashe. Badges/active-check sob ei filtered NAV-i use kore, tai alada kichu lagbe na. */
+const NAV = NAV_ALL
+  .map((g) => ({ ...g, items: g.items.filter((it) => !isHiddenAdminHref(it.href)) }))
+  .filter((g) => g.items.length > 0);
 
 function decodeToken(t?: string | null): any {
   try {
@@ -135,7 +145,7 @@ export default function Sidebar({ pending, lowStock }: { pending: number; lowSto
   const urlT = sp.get("t") || "";
   let t = urlT;
   if (!t) { try { t = localStorage.getItem("sz_admin_token") || ""; } catch {} }
-  const link = (href: string) => (t ? href + "?t=" + encodeURIComponent(t) : href);
+  const link = (href: string) => (t ? href + (href.includes("?") ? "&" : "?") + "t=" + encodeURIComponent(t) : href);
   const user = decodeToken(t);
   const [menuOpen, setMenuOpen] = useState(false);
   /* ≤900px the sidebar becomes an off-canvas drawer (opened from the topbar ☰).
@@ -255,7 +265,7 @@ export default function Sidebar({ pending, lowStock }: { pending: number; lowSto
         <button aria-label="Open menu" aria-expanded={menuOpen} aria-controls="admin-drawer" onClick={() => setMenuOpen(true)}>
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"><path d="M3 6h18M3 12h18M3 18h18" /></svg>
         </button>
-        <Link href={link("/admin/dashboard")} className="logo">SINZO<small>COMMERCE PANEL</small></Link>
+        <Link href={link("/admin/dashboard")} className="logo">TRENDING&apos;S<small>COMMERCE PANEL</small></Link>
         <Link href="/" target="_blank" aria-label="View website" style={{ display: "flex", padding: 8 }}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6M15 3h6v6M10 14 21 3" /></svg>
         </Link>
@@ -265,7 +275,7 @@ export default function Sidebar({ pending, lowStock }: { pending: number; lowSto
     <aside id="admin-drawer" className={"admin-side" + (menuOpen ? " open" : "") + (isCollapsed ? " collapsed" : "")} aria-label="Admin sidebar">
       <div className="side-head">
         <Link href={link("/admin/dashboard")} className="logo" onClick={() => setMenuOpen(false)} title="Dashboard">
-          <span className="logo-full">SINZO<span style={{ fontSize: 9.5, display: "block", color: "var(--ad-mute)", letterSpacing: ".24em", fontWeight: 500, marginTop: 3 }}>COMMERCE PANEL</span></span>
+          <span className="logo-full">TRENDING&apos;S<span style={{ fontSize: 9.5, display: "block", color: "var(--ad-mute)", letterSpacing: ".24em", fontWeight: 500, marginTop: 3 }}>COMMERCE PANEL</span></span>
           <span className="logo-mini">S</span>
         </Link>
         <button className="drawer-close" onClick={() => setMenuOpen(false)} aria-label="Close menu" title="Close menu">

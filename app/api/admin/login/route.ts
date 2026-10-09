@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { FEATURES } from "@/lib/features";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { createToken, sessionCookie, rateLimit, logAudit, sessionTicket } from "@/lib/auth";
@@ -34,7 +35,7 @@ export async function POST(req: Request) {
     }
     /* Second factor: with 2FA on, the password alone does NOT log anyone in — it only proves
        the first factor and returns a 5-minute ticket for the code step. */
-    if (user.twoFactorEnabled && user.twoFactorSecret) {
+    if (FEATURES.adminTwoFactor && user.twoFactorEnabled && user.twoFactorSecret) {
       await logAudit(user.email, "LOGIN_PASSWORD_OK_2FA_PENDING", undefined, ip);
       return NextResponse.json({ ok: false, needs2fa: true, ticket: sessionTicket(user.id, user.sessionVersion), email: user.email });
     }

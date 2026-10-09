@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import { useCart, trackEvent, toast, captureAttribution, newEventId, setTrackingPhone } from "@/components/store";
 import { normalizeBDPhone, isValidBDPhone } from "@/lib/phone";
 import { imgSrc, imgSrcSet } from "@/components/parts";
+import { ComboOffer } from "@/components/combo-offer";
 import { checkoutTotals, couponDiscount, nonNegativeAmount } from "@/lib/checkout-pricing";
 import { getCaptureKey, nextCaptureRevision, clearCaptureKey, captureSignature, PENDING_RECOVERY_KEY } from "@/lib/recovery-client";
 
@@ -139,7 +140,7 @@ export default function CheckoutPage() {
       try {
         const response = await fetch("/api/checkout/start", { method: "POST", headers: { "Content-Type": "application/json" }, signal: controller.signal, keepalive: true, body: JSON.stringify({
           captureKey: key, revision: nextCaptureRevision(),
-          items: lines.map(l => ({ productId: l.productId, variantId: l.variantId || null, qty: l.qty })),
+          items: lines.map(l => ({ productId: l.productId, variantId: l.variantId || null, qty: l.qty, isGift: l.isGift || undefined, giftPromotionId: l.promotionId, giftTierIndex: l.tierIndex, giftSlotKey: l.slotKey, giftValue: l.giftValue })),
           phone, name: form.name.trim(), address: form.address.trim(), email: form.email.trim(),
           area: form.area, notes: form.notes, couponCode: applied?.code || null,
         }) });
@@ -150,7 +151,7 @@ export default function CheckoutPage() {
     }, 800);
     const saveOnLeave = () => {
       if (orderInFlight.current || controller.signal.aborted) return;
-      const body = JSON.stringify({ captureKey: key, revision: nextCaptureRevision(), items: lines.map(l => ({ productId: l.productId, variantId: l.variantId || null, qty: l.qty })), phone, name: form.name.trim(), address: form.address.trim(), email: form.email.trim(), area: form.area, notes: form.notes, couponCode: applied?.code || null });
+      const body = JSON.stringify({ captureKey: key, revision: nextCaptureRevision(), items: lines.map(l => ({ productId: l.productId, variantId: l.variantId || null, qty: l.qty, isGift: l.isGift || undefined, giftPromotionId: l.promotionId, giftTierIndex: l.tierIndex, giftSlotKey: l.slotKey, giftValue: l.giftValue })), phone, name: form.name.trim(), address: form.address.trim(), email: form.email.trim(), area: form.area, notes: form.notes, couponCode: applied?.code || null });
       navigator.sendBeacon?.("/api/checkout/start", new Blob([body], { type: "application/json" }));
     };
     window.addEventListener("pagehide", saveOnLeave);
@@ -240,7 +241,7 @@ export default function CheckoutPage() {
           captureKey: getCaptureKey(), recoveryToken: recoveryStage === "restored" ? recoveryToken : undefined,
           couponCode: applied?.code || null, purchaseEventId: eventId,
           attribution: captureAttribution(),
-          items: lines.map((l) => ({ productId: l.productId, variantId: l.variantId || null, qty: l.qty })),
+          items: lines.map((l) => ({ productId: l.productId, variantId: l.variantId || null, qty: l.qty, isGift: l.isGift || undefined, giftPromotionId: l.promotionId, giftTierIndex: l.tierIndex, giftSlotKey: l.slotKey, giftValue: l.giftValue })),
         }),
       });
       const j = await r.json();
@@ -263,6 +264,7 @@ export default function CheckoutPage() {
   return (
     <div className="container checkout-page checkout-minimal">
       {recoveryBanner}
+      <div className="chit-kicker"><span className="ed-kicker-mark" aria-hidden="true" />Order chit — cash on delivery</div>
       <h1 className="checkout-h1">Checkout</h1>
       <div className="checkout-layout checkout-minimal-layout">
         <section className="checkout-minimal-form" aria-label="Delivery details">
@@ -385,6 +387,9 @@ export default function CheckoutPage() {
 
         <aside className="checkout-summary" aria-labelledby="checkout-summary-title">
           <h2 id="checkout-summary-title">Your order</h2>
+          {/* Free-gift claim box: the shopper picks the piece they earned right
+              here, without going back to the cart. */}
+          <ComboOffer compact />
           <div className="checkout-order-items">
             {lines.map((l) => (
               <div className="checkout-order-item" key={l.key}>
@@ -399,18 +404,22 @@ export default function CheckoutPage() {
                   decoding="async"
                 />
                 <div className="checkout-order-copy">
-                  <div className="checkout-order-name">{l.title}{l.preorder && <span className="po-tag">Pre-order</span>}</div>
+                  <div className="checkout-order-name">{l.isGift && <span className="gift-tag">Gift</span>}{l.title}{l.preorder && <span className="po-tag">Pre-order</span>}</div>
                   <div className="checkout-order-variant">{[l.size, l.color].filter(Boolean).join(" · ")}</div>
                   <div className="checkout-order-actions">
-                    <div className="mini-qty" aria-label={`Quantity: ${l.qty}`}>
-                      <button type="button" onClick={() => setQty(l.key, l.qty - 1)} aria-label={`Decrease ${l.title} quantity`}>−</button>
-                      <span>{l.qty}</span>
-                      <button type="button" onClick={() => setQty(l.key, l.qty + 1)} aria-label={`Increase ${l.title} quantity`}>+</button>
-                    </div>
+                    {l.isGift ? (
+                      <span className="gift-note">Free gift — 1 pc</span>
+                    ) : (
+                      <div className="mini-qty" aria-label={`Quantity: ${l.qty}`}>
+                        <button type="button" onClick={() => setQty(l.key, l.qty - 1)} aria-label={`Decrease ${l.title} quantity`}>−</button>
+                        <span>{l.qty}</span>
+                        <button type="button" onClick={() => setQty(l.key, l.qty + 1)} aria-label={`Increase ${l.title} quantity`}>+</button>
+                      </div>
+                    )}
                     <button type="button" className="checkout-item-remove" onClick={() => remove(l.key)}>Remove</button>
                   </div>
                 </div>
-                <div className="checkout-order-price">৳{(l.price * l.qty).toLocaleString("en-IN")}</div>
+                <div className="checkout-order-price">{l.isGift ? <><s className="gift-was">৳{Number(l.giftValue || 0).toLocaleString("en-IN")}</s> <b className="gift-free">FREE</b></> : <>৳{(l.price * l.qty).toLocaleString("en-IN")}</>}</div>
               </div>
             ))}
           </div>

@@ -76,7 +76,7 @@ export default function AdminError({ error, reset }: { error: Error & { digest?:
             <button className="abtn" onClick={() => { try { sessionStorage.removeItem("sz_admin_err_reload"); } catch {} window.location.reload(); }}>↻ Reload page</button>
           </div>
         </div>
-        <div style={{ textAlign: "left", background: "#fff5f2", border: "1px solid #f0d7d0", borderRadius: 8, padding: 12 }}>
+        <div style={{ textAlign: "left", background: "rgba(251,125,125,.10)", border: "1px solid rgba(251,125,125,.28)", borderRadius: 10, padding: 12 }}>
           <div style={{ fontSize: 11, letterSpacing: ".14em", color: "var(--danger)", marginBottom: 6 }}>ERROR DETAIL (ei box ta screenshot pathio):</div>
           <pre style={{ fontSize: 11, whiteSpace: "pre-wrap", wordBreak: "break-word", margin: 0, color: "#7a2e1f", fontFamily: "monospace" }}>{details || "…"}</pre>
           <div style={{ marginTop: 8, fontSize: 11, color: "var(--muted)", wordBreak: "break-all" }}>

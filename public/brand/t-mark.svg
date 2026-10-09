@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="TRENDING'S">
+  <title>TRENDING'S — T mark</title>
+  <!-- paper -->
+  <rect width="512" height="512" fill="#F2EDE4"/>
+  <!-- frame (drop this group for the frameless/maskable variant) -->
+  <g id="frame">
+    <rect x="25.6" y="25.6" width="460.8" height="460.8" fill="none" stroke="#14120F" stroke-width="10.75"/>
+  </g>
+  <g id="mark">
+    <!-- T -->
+    <rect x="102.4" y="113.9" width="307.2" height="74.24" fill="#14120F"/>
+    <rect x="209.4" y="188.16" width="94.72" height="212.7" fill="#14120F"/>
+    <!-- signal square -->
+    <rect x="329.8" y="197.4" width="53.76" height="53.76" rx="6.14" fill="#E4451F"/>
+  </g>
+</svg>

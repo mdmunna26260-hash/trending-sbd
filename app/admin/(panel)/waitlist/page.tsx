@@ -2,6 +2,7 @@ import { db } from "@/lib/db";
 import { requireAdmin } from "@/lib/auth";
 import { waitlistStats } from "@/lib/waitlist";
 import { waStatus } from "@/lib/wa";
+import { FEATURES } from "@/lib/features";
 import WaitlistClient from "./client";
 
 export const dynamic = "force-dynamic";
@@ -49,11 +50,14 @@ export default async function WaitlistPage(props: { searchParams: Promise<{ t?: 
         </div>
       </div>
 
-      <div className="kpis kpis-4" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+      {/* KPI row — WhatsApp bridge card ta sudhu adminWhatsapp on thakle dekhabe (lib/features.ts) */}
+      <div className={"kpis kpis-" + (FEATURES.adminWhatsapp ? 4 : 3)} style={{ gridTemplateColumns: `repeat(${FEATURES.adminWhatsapp ? 4 : 3}, 1fr)` }}>
         <div className="kpi"><div className="k-label">Waiting now</div><div className="k-val">{stats.pending}</div><div className="k-sub">notified hoy ni</div></div>
         <div className="kpi"><div className="k-label">Products affected</div><div className="k-val">{stats.products}</div><div className="k-sub">restock priority</div></div>
         <div className="kpi"><div className="k-label">Total signups</div><div className="k-val">{stats.total}</div><div className="k-sub">all time</div></div>
-        <div className="kpi"><div className="k-label">WhatsApp bridge</div><div className="k-val">{wa.connected ? "Connected" : wa.running ? "Not linked" : "Off"}</div><div className="k-sub">{wa.connected ? "auto notify cholbe" : "SMS/email fallback"}</div></div>
+        {FEATURES.adminWhatsapp && (
+          <div className="kpi"><div className="k-label">WhatsApp bridge</div><div className="k-val">{wa.connected ? "Connected" : wa.running ? "Not linked" : "Off"}</div><div className="k-sub">{wa.connected ? "auto notify cholbe" : "SMS/email fallback"}</div></div>
+        )}
       </div>
 
       <div className="adm-cols" style={{ display: "grid", gridTemplateColumns: "1.5fr 1fr", gap: 16, alignItems: "start"  }}>
@@ -86,7 +90,7 @@ export default async function WaitlistPage(props: { searchParams: Promise<{ t?: 
       </div>
 
       <div className="cfg-note" style={{ marginTop: 16 }}>
-        Notify uses whatever channel the shop has: WhatsApp bridge → SMS gateway → email. Anything that could not be
+        Notify uses whatever channel the shop has: {FEATURES.adminWhatsapp && "WhatsApp bridge → "}SMS gateway → email. Anything that could not be
         sent automatically is kept on the list with a tap-to-send link, so nothing is silently dropped. Restocking a
         product from <a href="/admin/stock">Stock</a> pings everyone waiting for it in the same request.
       </div>

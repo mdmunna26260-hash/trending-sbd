@@ -4,6 +4,7 @@ import { afetch, withToken, copyText } from "@/lib/afetch";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { FEATURES } from "@/lib/features";
 
 function ThermalLink({ orderId, token }: { orderId: number; token: string }) {
   const [w, setW] = useState("80");
@@ -464,9 +465,12 @@ export default function OrderDetailClient({ initial }: { initial: Order }) {
                   </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
                     <button className="abtn sm" disabled={busy} onClick={() => copy("Phone", o.phone)}>📋 Copy phone</button>
-                    <a className="abtn sm" style={{ color: "var(--ok)", borderColor: "#c4dfd0", fontWeight: 600 }}
-                      href={"https://wa.me/" + (() => { let d = o.phone.replace(/[^0-9]/g, ""); if (d.startsWith("0")) d = "88" + d; else if (!d.startsWith("880")) d = "880" + d; return d; })()}
-                      target="_blank" rel="noreferrer">💬 WhatsApp customer</a>
+                    {/* WhatsApp tool — hidden while lib/features.ts e adminWhatsapp off ache */}
+                    {FEATURES.adminWhatsapp && (
+                      <a className="abtn sm" style={{ color: "var(--ok)", borderColor: "#c4dfd0", fontWeight: 600 }}
+                        href={"https://wa.me/" + (() => { let d = o.phone.replace(/[^0-9]/g, ""); if (d.startsWith("0")) d = "88" + d; else if (!d.startsWith("880")) d = "880" + d; return d; })()}
+                        target="_blank" rel="noreferrer">💬 WhatsApp customer</a>
+                    )}
                   </div>
                   <div style={{ display: "flex", gap: 8, marginTop: 8, flexWrap: "wrap" }}>
                     <button className="abtn sm danger" disabled={busy} onClick={() => quickBlock("PHONE", o.phone)}>🚫 Block phone</button>

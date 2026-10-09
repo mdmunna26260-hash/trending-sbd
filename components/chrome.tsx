@@ -216,19 +216,21 @@ export function Header({ storeName, categories }: { storeName: string; categorie
         <div className="search-overlay" onClick={() => setSearchOpen(false)}>
           <div className="search-panel" onClick={(e) => e.stopPropagation()}>
             <div className="container">
+              {/* print-index kicker — the overlay reads as a catalogue index, not a generic search box */}
+              <div className="srch-kicker"><span className="ed-kicker-mark" aria-hidden="true" />Catalogue index</div>
               <form className="search-form" onSubmit={submitQ}>
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" style={{ flex: "none", color: "var(--muted)" }}><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
-                <input autoFocus placeholder="Search products…" value={q} onChange={(e) => onQ(e.target.value)} aria-label="Search products" autoCapitalize="none" spellCheck={false} />
+                <input autoFocus placeholder="Search the catalogue…" value={q} onChange={(e) => onQ(e.target.value)} aria-label="Search products" autoCapitalize="none" spellCheck={false} />
                 <button type="button" className="icon-btn" aria-label="Close search" onClick={() => setSearchOpen(false)}>
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6"><path d="M18 6 6 18M6 6l12 12"/></svg>
                 </button>
               </form>
-              {sugg === null && q.trim().length < 2 && <div className="search-hint" style={{ padding: "16px 2px 0" }}>Popular right now ↓ — likhte shuru korun</div>}
+              {sugg === null && q.trim().length < 2 && <div className="search-hint" style={{ padding: "16px 2px 0" }}>Popular right now — type 2+ letters</div>}
               {fetching && <div className="search-hint" style={{ display: "flex", alignItems: "center", gap: 8, padding: "14px 2px 0" }}><span className="spinner" aria-hidden="true" /> Searching…</div>}
               {sugg !== null && (
                 <>
                   <div className="eyebrow" style={{ margin: "18px 0 8px" }}>{q.trim().length >= 2 ? (sugg.length ? "Products" : "") : "Popular right now"}</div>
-                  {q.trim().length >= 2 && sugg.length === 0 && <div className="search-hint" style={{ padding: "6px 2px" }}>“{q}”-er jonno kichu pay nai — banan bhul thakte pare</div>}
+                  {q.trim().length >= 2 && sugg.length === 0 && <div className="search-hint" style={{ padding: "6px 2px" }}>“{q}” khuje kichu pawa gelo na — spelling check korun</div>}
                   <div className="search-results">
                     {sugg.slice(0, 6).map((p) => (
                       <Link key={p.id} href={"/products/" + p.slug} onClick={() => { setSearchOpen(false); if (q.trim().length >= 2) trackEvent("Search", { search_string: q }); }}>
@@ -305,7 +307,7 @@ export function Footer({ cfg }: { cfg: any }) {
         <div className="container nl-grid">
           <div>
             <div className="eyebrow" style={{ opacity: .75 }}>Newsletter</div>
-            <h2>Join the {store.name || "SINZO"} list</h2>
+            <h2>Join the {store.name || "TRENDING'S"} list</h2>
             <p>Early access to drops, private sales, and 10% off your first order.</p>
           </div>
           <div>

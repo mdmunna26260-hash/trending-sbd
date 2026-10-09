@@ -45,6 +45,8 @@ model Category {
   sizeChart   String?   // HTML table for size guide
   image       String?
   products    Product[]
+  promotionEligible  PromotionEligibleCategory[]
+  promotionExcluded  PromotionExcludedCategory[]
 }
 
 model Collection {
@@ -111,6 +113,10 @@ model Product {
 
   @@index([colorGroupId])
   waitlist        Waitlist[]
+  promotionGiftEntries   PromotionGiftProduct[]
+  promotionEligible      PromotionEligibleProduct[]
+  promotionExcluded      PromotionExcludedProduct[]
+  promotionExcludedGift  PromotionExcludedGiftProduct[]
 }
 
 model ColorGroup {
@@ -239,6 +245,7 @@ model Order {
   packedBy          String?
   reviewRequestedAt DateTime?
   payments          Payment[]
+  promotionUsages  PromotionUsage[]
 }
 
 model OrderItem {
@@ -257,6 +264,11 @@ model OrderItem {
 
   preorder      Boolean   @default(false) // order line was placed as pre-order
   preorderDate  DateTime?               // expected delivery date captured at order time
+  /// Free-gift lines: price is forced to 0 by the server, never by the browser.
+  isGift           Boolean @default(false)
+  giftPromotionId  String?
+  giftTierIndex    Int?
+  giftSlotKey      String?
 }
 
 model Coupon {
@@ -557,4 +569,187 @@ model WaOptOut {
   reason    String?
   source    String? // INBOUND | MANUAL | CSV
   createdAt DateTime @default(now())
+}
+
+// ============================================================
+// PROMOTIONS — free-gift tier engine ("Choose More. Get More.")
+// Ported from the trendings-commerce engine. The engine itself
+// (lib/promotions/engine.ts) is pure and framework-free; these
+// tables are only the admin-authored configuration it reads.
+// Money is stored as integer MINOR units (poisha) everywhere.
+// ============================================================
+model Promotion {
+  id          String    @id @default(cuid())
+  slug        String    @unique
+  name        String
+  description String?
+  type        String    @default("GIFT_TIERS") // GIFT_TIERS | PERCENTAGE | FIXED | BUY_X_GET_Y
+  status      String    @default("DRAFT")      // DRAFT | ACTIVE | PAUSED | ENDED
+  priority    Int       @default(0)            // lower wins when several are live
+  startsAt    DateTime  @default(now())
+  endsAt      DateTime?
+
+  countMode        String @default("QUANTITY")     // QUANTITY | DISTINCT_LINES
+  eligibilityScope String @default("ALL_PRODUCTS") // ALL_PRODUCTS | PRODUCTS | CATEGORIES
+
+  highestTierWins      Boolean @default(true)
+  lockGrantedGifts     Boolean @default(false)
+  lockBehavior         String  @default("KEEP_ALL") // KEEP_ALL | HIGHEST_ONLY
+  requireGiftSelection Boolean @default(true)
+  allowGiftSkipping    Boolean @default(false)
+  maxGiftsPerOrder     Int?
+
+  maxOrders  Int?
+  usedOrders Int    @default(0)
+
+  config String @default("{}") // JSON params for PERCENTAGE / FIXED / BUY_X_GET_Y
+
+  createdBy String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  tiers              PromotionTier[]
+  giftPools          PromotionGiftPool[]
+  eligibleProducts   PromotionEligibleProduct[]
+  excludedProducts   PromotionExcludedProduct[]
+  eligibleCategories PromotionEligibleCategory[]
+  excludedCategories PromotionExcludedCategory[]
+  excludedGiftItems  PromotionExcludedGiftProduct[]
+  usages             PromotionUsage[]
+
+  @@index([status, startsAt])
+}
+
+model PromotionTier {
+  id               String  @id @default(cuid())
+  promotionId      String
+  index            Int
+  key              String
+  label            String
+  description      String?
+  requiredQuantity Int
+  sortOrder        Int     @default(0)
+
+  promotion Promotion           @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  slots     PromotionTierSlot[]
+
+  @@unique([promotionId, index])
+  @@unique([promotionId, key])
+}
+
+model PromotionTierSlot {
+  id         String @id @default(cuid())
+  tierId     String
+  giftPoolId String
+  key        String  // stable slot key: "shirt", "denim-pant", "denim-jeans"
+  label      String
+  giftType   String  @default("CUSTOM")
+  quantity   Int     @default(1)
+  sortOrder  Int     @default(0)
+
+  tier     PromotionTier     @relation(fields: [tierId], references: [id], onDelete: Cascade)
+  giftPool PromotionGiftPool @relation(fields: [giftPoolId], references: [id], onDelete: Restrict)
+
+  @@unique([tierId, key])
+}
+
+model PromotionGiftPool {
+  id          String  @id @default(cuid())
+  promotionId String
+  key         String
+  label       String
+  description String?
+  sortOrder   Int     @default(0)
+  // Optional auto-fill: every ACTIVE product of these categories joins the
+  // candidate list on top of the hand-picked rows below.
+  autoFill    Boolean @default(false)
+  categoryIds String  @default("[]") // JSON number[] of Category.id
+  // Per-rule exclusion (owner request): ei pool theke ei product gulo kokhono free gift
+  // hisebe offer hobe na — hand-picked hok ba category auto-fill, dutoi theke filter hoy.
+  // Promotion-level "never give these as gifts" (PromotionExcludedGiftProduct) global thake;
+  // eta tar upor ekta pool-scoped level. JSON number[] of Product.id
+  excludeProductIds String @default("[]")
+
+  promotion Promotion              @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  products  PromotionGiftProduct[]
+  slots     PromotionTierSlot[]
+
+  @@unique([promotionId, key])
+}
+
+model PromotionGiftProduct {
+  id         String   @id @default(cuid())
+  poolId     String
+  productId  Int      // Product.id is Int (autoincrement) in this repo
+  variantIds String   @default("[]") // JSON string[]; empty = every active variant
+  sortOrder  Int      @default(0)
+  isActive   Boolean  @default(true)
+  createdAt  DateTime @default(now())
+
+  pool    PromotionGiftPool @relation(fields: [poolId], references: [id], onDelete: Cascade)
+  product Product           @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  @@unique([poolId, productId])
+}
+
+model PromotionEligibleProduct {
+  id          String @id @default(cuid())
+  promotionId String
+  productId   Int
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  @@unique([promotionId, productId])
+}
+
+model PromotionExcludedProduct {
+  id          String @id @default(cuid())
+  promotionId String
+  productId   Int
+  reason      String?
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  @@unique([promotionId, productId])
+}
+
+model PromotionEligibleCategory {
+  id          String @id @default(cuid())
+  promotionId String
+  categoryId  Int
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  category  Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  @@unique([promotionId, categoryId])
+}
+
+model PromotionExcludedCategory {
+  id          String @id @default(cuid())
+  promotionId String
+  categoryId  Int
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  category  Category  @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  @@unique([promotionId, categoryId])
+}
+
+model PromotionExcludedGiftProduct {
+  id          String @id @default(cuid())
+  promotionId String
+  productId   Int
+  reason      String?
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  @@unique([promotionId, productId])
+}
+
+model PromotionUsage {
+  id             String   @id @default(cuid())
+  promotionId    String
+  orderId        Int      // Order.id is Int in this repo
+  tierIndex      Int
+  giftCount      Int      @default(0)
+  giftValueMinor Int      @default(0)
+  createdAt      DateTime @default(now())
+
+  promotion Promotion @relation(fields: [promotionId], references: [id], onDelete: Cascade)
+  order     Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  @@index([promotionId, createdAt])
 }

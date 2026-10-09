@@ -28,13 +28,13 @@ export const SMS_PROVIDERS = [
 
 /** The texts a BD shop actually sends. `{…}` placeholders are filled per order. */
 export const SMS_TEMPLATES: { id: string; label: string; body: string }[] = [
-  { id: "confirmed", label: "Order confirmed", body: "Sinzo: {name}, apnar order {code} confirm hoyeche. Total {amount}. Dhonnobad!" },
-  { id: "packed", label: "Packed", body: "Sinzo: order {code} pack hoye gelo, aj courier e jabe." },
-  { id: "shipped", label: "Handed to courier", body: "Sinzo: order {code} courier e deya hoyeche ({courier}). Tracking: {tracking}" },
-  { id: "delivered", label: "Delivered", body: "Sinzo: order {code} deliver hoyeche. Kono problem thakle ei number e janan — dhonnobad!" },
-  { id: "cancelled", label: "Cancelled", body: "Sinzo: order {code} cancel kora hoyeche. Jante chai keno — reply korun." },
-  { id: "due", label: "Cash on delivery reminder", body: "Sinzo: order {code} er {amount} cash delivery-r somoy diben. Rider {area} e jacche." },
-  { id: "waitlist", label: "Back in stock", body: "Sinzo: {product} abar stock e eseche! Ekhon order korun: {link}" },
+  { id: "confirmed", label: "Order confirmed", body: "TRENDING'S: {name}, apnar order {code} confirm hoyeche. Total {amount}. Dhonnobad!" },
+  { id: "packed", label: "Packed", body: "TRENDING'S: order {code} pack hoye gelo, aj courier e jabe." },
+  { id: "shipped", label: "Handed to courier", body: "TRENDING'S: order {code} courier e deya hoyeche ({courier}). Tracking: {tracking}" },
+  { id: "delivered", label: "Delivered", body: "TRENDING'S: order {code} deliver hoyeche. Kono problem thakle ei number e janan — dhonnobad!" },
+  { id: "cancelled", label: "Cancelled", body: "TRENDING'S: order {code} cancel kora hoyeche. Jante chai keno — reply korun." },
+  { id: "due", label: "Cash on delivery reminder", body: "TRENDING'S: order {code} er {amount} cash delivery-r somoy diben. Rider {area} e jacche." },
+  { id: "waitlist", label: "Back in stock", body: "TRENDING'S: {product} abar stock e eseche! Ekhon order korun: {link}" },
   { id: "custom", label: "Blank / custom text", body: "" },
 ];
 

@@ -1,7 +1,18 @@
 import { roundMoney } from "./checkout-pricing";
 
 export class CheckoutValidationError extends Error {}
-export type CheckoutLine = { productId: number; variantId: number | null; qty: number };
+export type CheckoutLine = {
+  productId: number; variantId: number | null; qty: number;
+  /* Free-gift lines. The client only says WHICH gift slot this row claims to be;
+     the checkout route re-runs the promotion engine and drops the row unless the
+     cart genuinely earned it. Price is forced to 0 on the server either way. */
+  isGift?: boolean;
+  giftPromotionId?: string;
+  giftTierIndex?: number;
+  giftSlotKey?: string;
+  /** Market price of the gift — for the order record only, never charged. */
+  giftValue?: number;
+};
 type Product = {
   id: number; title: string; price: number; stock: number; preorder?: boolean; preorderDate?: Date | string | null;
   variants: { id: number; size?: string | null; color?: string | null; price?: number | null; stock: number }[];
@@ -24,11 +35,21 @@ export function parseCheckoutLines(raw: unknown): CheckoutLine[] {
       throw new CheckoutValidationError("Invalid product or variant");
     }
     if (!Number.isSafeInteger(qty) || qty < 1 || qty > 99) throw new CheckoutValidationError("Quantity must be a whole number between 1 and 99");
-    const key = `${productId}:${variantId || 0}`;
+    const isGift = item.isGift === true;
+    const giftPromotionId = typeof item.giftPromotionId === "string" ? item.giftPromotionId.slice(0, 64) : undefined;
+    const giftTierIndex = item.giftTierIndex == null ? undefined : Number(item.giftTierIndex);
+    const giftSlotKey = typeof item.giftSlotKey === "string" ? item.giftSlotKey.slice(0, 64) : undefined;
+    const giftValue = Number.isFinite(Number(item.giftValue)) ? Math.max(0, Number(item.giftValue)) : undefined;
+    if (isGift && (!giftPromotionId || !Number.isSafeInteger(giftTierIndex) || !giftSlotKey)) {
+      throw new CheckoutValidationError("Invalid gift item");
+    }
+    /* A gift is always exactly one piece — a quantity there is a tampered cart. */
+    const lineQty = isGift ? 1 : qty;
+    const key = isGift ? `gift:${giftPromotionId}:${giftTierIndex}:${giftSlotKey}` : `${productId}:${variantId || 0}`;
     const previous = lines.get(key);
-    const combined = qty + (previous?.qty || 0);
+    const combined = isGift ? 1 : lineQty + (previous?.qty || 0);
     if (combined > 99) throw new CheckoutValidationError("Quantity must be a whole number between 1 and 99");
-    lines.set(key, { productId, variantId, qty: combined });
+    lines.set(key, { productId, variantId, qty: combined, isGift, giftPromotionId, giftTierIndex, giftSlotKey, giftValue });
   }
   return [...lines.values()];
 }
@@ -47,8 +68,10 @@ export function buildCheckoutItems(lines: CheckoutLine[], products: Product[], o
     if (options.checkStock !== false && !product.preorder && (qtyForProduct > product.stock || (variant && line.qty > variant.stock))) {
       throw new CheckoutValidationError(`Not enough stock for ${product.title}. Please update your cart.`);
     }
-    const price = variant?.price ?? product.price;
-    if (!Number.isFinite(price) || price < 0) throw new CheckoutValidationError(`${product.title} is currently unavailable`);
+    const listPrice = variant?.price ?? product.price;
+    if (!Number.isFinite(listPrice) || listPrice < 0) throw new CheckoutValidationError(`${product.title} is currently unavailable`);
+    /* A free-gift line is never charged, whatever the browser claimed. */
+    const price = line.isGift ? 0 : listPrice;
     subtotal = roundMoney(subtotal + price * line.qty);
     if (!Number.isFinite(subtotal) || subtotal > 1_000_000_000) throw new CheckoutValidationError("Order amount exceeds the allowed limit");
     const image = [...(product.images || [])].sort((a, b) => (a.position || 0) - (b.position || 0))[0]?.url || null;
@@ -57,6 +80,10 @@ export function buildCheckoutItems(lines: CheckoutLine[], products: Product[], o
       variant: variant ? [variant.size, variant.color].filter(Boolean).join(" · ") : null,
       price, qty: line.qty, image, preorder: !!product.preorder,
       preorderDate: product.preorderDate ? new Date(product.preorderDate) : null,
+      isGift: !!line.isGift,
+      giftPromotionId: line.isGift ? line.giftPromotionId ?? null : null,
+      giftTierIndex: line.isGift ? line.giftTierIndex ?? null : null,
+      giftSlotKey: line.isGift ? line.giftSlotKey ?? null : null,
     };
   });
   return { items, subtotal };

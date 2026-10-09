@@ -15,7 +15,11 @@ export const viewport: Viewport = {
   initialScale: 1,
   maximumScale: 5,
   viewportFit: "cover",
-  themeColor: "#faf9f7",
+  /* browser chrome follows the paper/ink pair (was a single hard-coded cream) */
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#ffffff" },
+    { media: "(prefers-color-scheme: dark)", color: "#14120f" },
+  ],
 };
 
 /* Share images: use the 1200px variant instead of the full-res original */
@@ -133,14 +137,19 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <head>
         <script dangerouslySetInnerHTML={{ __html: `(function(){try{var m=localStorage.getItem("sz_theme")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light");}catch(e){document.documentElement.setAttribute("data-theme","light");}})();` }} />
         <style dangerouslySetInnerHTML={{ __html: cssVars }} />
-        <link rel="preload" href="/fonts/charm-400.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        {/* both faces paint above the fold (hero headline + body copy) — warm them in parallel */}
+        <link rel="preload" href="/fonts/anton-latin.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
+        <link rel="preload" href="/fonts/archivo-var.woff2" as="font" type="font/woff2" crossOrigin="anonymous" />
         <link rel="manifest" href="/manifest.webmanifest" />
         {/* without an explicit 32px/ico entry browsers request /favicon.ico and got a 19 KB
             HTML 404 page back (that response is also uncacheable, so it repeats on every visit) */}
         <link rel="icon" href="/favicon.ico" sizes="48x48" />
+        <link rel="icon" href="/favicon-48.png" sizes="48x48" type="image/png" />
+        <link rel="icon" href="/favicon-32.png" sizes="32x32" type="image/png" />
         <link rel="icon" href="/icon-192.png" sizes="192x192" type="image/png" />
-        <link rel="mask-icon" href="/icon-192.png" color="#141414" />
+        <link rel="mask-icon" href="/icon-192.png" color="#14120f" />
         <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+        {/* theme-color lives in the `viewport` export above (light paper / dark ink) */}
         {/* No font preconnect or stylesheet on purpose: the theme heading/body fonts are a <select> of
             system stacks (Didot/Bodoni/Georgia plus the UI sans), so nothing is ever downloaded from
             Google. The old preconnect was a free DNS+TCP+TLS round trip on every view. If a real webfont

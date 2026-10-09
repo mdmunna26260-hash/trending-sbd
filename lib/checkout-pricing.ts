@@ -1,4 +1,6 @@
 export type CouponPricing = { type: string; value: number; maxDiscount?: number | null };
+import { FEATURES } from "./features";
+
 export const roundMoney = (value: number): number => Math.round((value + Number.EPSILON) * 100) / 100;
 
 export function nonNegativeAmount(value: unknown, fallback = 0): number {
@@ -17,7 +19,12 @@ export function couponDiscount(subtotal: number, coupon?: CouponPricing | null):
 
 /* One calculation for the browser and the order API. A threshold of zero means
    the promotion is DISABLED, not that every order gets free shipping. Zero
-   delivery fees are valid settings. */
+   delivery fees are valid settings.
+
+   FREE DELIVERY switch (lib/features.ts → freeDelivery): off thakle ei function-ei
+   threshold ar coupon-freeship dutoi ignore hoy — mane admin UI lukano thakleo, purono DB
+   value ba purono coupon code diye kono order free delivery pabe na. Server ei function
+   diyei total banay, tai eta-i ekmatro sotti. */
 export function checkoutTotals(input: {
   subtotal: number; discount?: number; area: string; shipping?: Record<string, any>;
   freeship?: boolean;
@@ -25,11 +32,12 @@ export function checkoutTotals(input: {
   const { shipping = {} } = input;
   const subtotal = nonNegativeAmount(input.subtotal);
   const discount = Math.min(subtotal, nonNegativeAmount(input.discount));
-  const threshold = nonNegativeAmount(shipping.freeShippingThreshold);
+  const threshold = FEATURES.freeDelivery ? nonNegativeAmount(shipping.freeShippingThreshold) : 0;
   const fee = input.area === "INSIDE_DHAKA"
     ? nonNegativeAmount(shipping.insideDhaka, 80)
     : nonNegativeAmount(shipping.outsideDhaka, 140);
-  const deliveryFee = input.freeship || (threshold > 0 && subtotal - discount >= threshold) ? 0 : fee;
+  const freeShipCoupon = FEATURES.freeDelivery && !!input.freeship;
+  const deliveryFee = freeShipCoupon || (threshold > 0 && subtotal - discount >= threshold) ? 0 : fee;
   const total = roundMoney(subtotal - discount + deliveryFee);
   return { subtotal, discount, deliveryFee, total };
 }

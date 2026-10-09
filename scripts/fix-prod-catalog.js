@@ -15,7 +15,7 @@
  *   5. /collections/sale was empty although the page promised
  *      "Up to 30% off selected styles" → fill it from comparePrice
  *   6. store.instagram containing a facebook.com URL (footer linked Instagram to FB)
- *   7. an empty homepage meta title (the site shipped as bare "SINZO")
+ *   7. an empty homepage meta title (the site shipped as bare "TRENDING'S")
  *
  * DRY RUN BY DEFAULT — nothing is written unless you pass --apply.
  *   node scripts/fix-prod-catalog.js            # read-only report
@@ -154,8 +154,8 @@ async function runQueue() {
   const seoRow = await prisma.setting.findUnique({ where: { key: "seo" } });
   let seo = {}; try { seo = seoRow ? JSON.parse(seoRow.value) : {}; } catch {}
   if (!squash(seo.metaTitle || "")) {
-    const metaTitle = "SINZO — Shirts, Polos, Tees & Jackets · Cash on Delivery in Bangladesh";
-    log("seo", 'homepage <title> is a bare "SINZO" (no keywords, no USP) → set a real meta title',
+    const metaTitle = "TRENDING'S — Shirts, Polos, Tees & Jackets · Cash on Delivery in Bangladesh";
+    log("seo", 'homepage <title> is a bare "TRENDING'S" (no keywords, no USP) → set a real meta title',
       () => prisma.setting.upsert({
         where: { key: "seo" },
         update: { value: JSON.stringify({ ...seo, metaTitle }) },

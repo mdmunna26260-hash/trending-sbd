@@ -100,7 +100,7 @@ export default function OrdersClient({ initial }: { initial: O[] }) {
                 const items = (o.items || []).map((i: any) => `${i.title}${i.variant ? " (" + i.variant + ")" : ""}${i.preorder ? " [PRE-ORDER]" : ""} × ${i.qty}`).join("<br>");
                 return `<div style="page-break-after:always;padding:20px 16px;border-bottom:2px solid #333;font-family:Arial,sans-serif">
                   <div style="text-align:center;margin-bottom:12px">
-                    <span style="font-family:Charm,'Brush Script MT',cursive;font-size:18px;font-weight:700;letter-spacing:.15em">SINZO</span>
+                    <span style="font-family:'Anton Display','Arial Narrow',sans-serif;font-size:19px;font-weight:400;letter-spacing:.06em;text-transform:uppercase">TRENDING&apos;S</span>
                   </div>
                   <div style="border:1px solid #ccc;border-radius:6px;padding:12px;margin-bottom:10px">
                     <div style="font-size:10px;color:#888;text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px">Consignment ID</div>
@@ -120,11 +120,11 @@ export default function OrdersClient({ initial }: { initial: O[] }) {
                   </div>
                 </div>`;
               }).join("");
-              w.document.write("<html><head><style>@font-face{font-family:Charm;font-weight:700;src:url(" + location.origin + "/fonts/charm-700.woff2) format('woff2')}@media print { .no-print { display:none } } body { margin: 0; background: #fff }</style></head><body>" + labels + "</body></html>");
+              w.document.write("<html><head><style>@font-face{font-family:'Anton Display';font-weight:400;src:url(" + location.origin + "/fonts/anton-latin.woff2) format('woff2')}@media print { .no-print { display:none } } body { margin: 0; background: #fff }</style></head><body>" + labels + "</body></html>");
               w.document.close();
-              // wait for the Charm wordmark font so the printed label isn't in the fallback face
+              // wait for the display wordmark font so the printed label isn't in the fallback face
               const go = () => setTimeout(() => w.print(), 200);
-              try { w.document.fonts.load("700 18px Charm").then(go, go); } catch { go(); }
+              try { w.document.fonts.load("400 19px 'Anton Display'").then(go, go); } catch { go(); }
             }}>🖨 Print labels</button>
             <button className="abtn danger" onClick={() => bulk("delete")}>Delete</button>
           </>}
@@ -161,7 +161,7 @@ export default function OrdersClient({ initial }: { initial: O[] }) {
               {list.map((o) => (
                 <tr key={o.id} style={{ cursor: "pointer" }} onClick={() => openOrder(o.id)}>
                   <td onClick={(e) => e.stopPropagation()}><input type="checkbox" checked={sel.has(o.id)} onChange={() => toggle(o.id)} /></td>
-                  <td><Link href={withToken("/admin/orders/" + o.id)} onClick={(e) => e.stopPropagation()}><b>{o.code}</b></Link>{o.channel && o.channel !== "vps" && <span title="Order onugroho onno website theke (Vercel)" style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: ".06em", color: "#8a6d3b", background: "#f5ecd9", borderRadius: 99, padding: "2px 7px", verticalAlign: "middle" }}>{o.channel.toUpperCase()}</span>}</td>
+                  <td><Link href={withToken("/admin/orders/" + o.id)} onClick={(e) => e.stopPropagation()}><b>{o.code}</b></Link>{o.channel && o.channel !== "vps" && <span title="Order onugroho onno website theke (Vercel)" style={{ marginLeft: 6, fontSize: 9.5, fontWeight: 700, letterSpacing: ".06em", color: "#ffd88f", background: "rgba(246,189,75,.16)", borderRadius: 99, padding: "2px 7px", verticalAlign: "middle" }}>{o.channel.toUpperCase()}</span>}</td>
                   <td>{o.name}<br />
                     <span style={{ color: "var(--muted)", fontSize: 12, display: "inline-flex", alignItems: "center", gap: 4 }}>
                       {o.phone}

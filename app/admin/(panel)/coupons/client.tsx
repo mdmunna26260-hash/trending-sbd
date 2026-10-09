@@ -2,6 +2,7 @@
 import { afetch, withToken } from "@/lib/afetch";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { FEATURES } from "@/lib/features";
 const EMPTY = { code: "", type: "percent", value: "10", minOrder: "", maxDiscount: "", usageLimit: "", perCustomer: "", firstOrderOnly: false, startsAt: "", endsAt: "", active: true };
 export default function CouponsClient({ initial }: { initial: any[] }) {
   const router = useRouter();
@@ -48,7 +49,13 @@ export default function CouponsClient({ initial }: { initial: any[] }) {
           <div className="acard-b form-grid">
             <div className="af"><label>Code *</label><input value={c.code} onChange={(e) => setC({ ...c, code: e.target.value.toUpperCase() })} placeholder="SUMMER20" /></div>
             <div className="af"><label>Type</label>
-              <select value={c.type} onChange={(e) => setC({ ...c, type: e.target.value })}><option value="percent">Percentage off</option><option value="fixed">Fixed amount off</option><option value="freeship">Free shipping</option></select>
+              <select value={c.type} onChange={(e) => setC({ ...c, type: e.target.value })}>
+                <option value="percent">Percentage off</option>
+                <option value="fixed">Fixed amount off</option>
+                {/* freeDelivery off (lib/features.ts) — "Free shipping" option lukano. Purono coupon edit korle
+                    value ta thik thak dekhate ei condition ta rakha (noile select silently type bodle dito). */}
+                {(FEATURES.freeDelivery || c.type === "freeship") && <option value="freeship">Free shipping</option>}
+              </select>
             </div>
             <div className="af"><label>Value {c.type === "percent" ? "(%)" : c.type === "fixed" ? "(৳)" : ""}</label><input type="number" value={c.value} onChange={(e) => setC({ ...c, value: e.target.value })} disabled={c.type === "freeship"} /></div>
             <div className="af"><label>Min order (৳)</label><input type="number" value={c.minOrder} onChange={(e) => setC({ ...c, minOrder: e.target.value })} /></div>

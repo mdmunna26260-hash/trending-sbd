@@ -2,7 +2,7 @@
 import type { CSSProperties } from "react";
 
 /* ============================================================
-   SINZO loading system — one shared, premium, minimal kit.
+   TRENDING'S loading system — one shared, premium, minimal kit.
    - <Spinner/>          inline spinner for actions (currentColor)
    - <LoadingButton/>    button with busy state (disabled + spinner,
                          no width jump, no duplicate submits)

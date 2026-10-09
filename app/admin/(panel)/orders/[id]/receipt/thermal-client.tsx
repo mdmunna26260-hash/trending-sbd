@@ -67,7 +67,7 @@ export default function ThermalClient({ order, store, width }: { order: any; sto
       {/* receipt body */}
       <div className="twrap">
         <div className="receipt">
-          <div className="ctr xl brand-wm">{store.name || "SINZO"}</div>
+          <div className="ctr xl brand-wm">{store.name || "TRENDING'S"}</div>
           {store.phone && <div className="ctr">{store.phone}</div>}
           <div className="dash" />
           <div><span className="b">{order.code}</span> · {new Date(order.createdAt).toLocaleDateString("en-GB", { day: "2-digit", month: "2-digit", year: "2-digit" })} {new Date(order.createdAt).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" })}</div>

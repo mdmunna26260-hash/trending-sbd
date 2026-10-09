@@ -1,5 +1,6 @@
 "use client";
 import { afetch } from "@/lib/afetch";
+import { FEATURES } from "@/lib/features";
 import { useState } from "react";
 
 type Login = { action: string; at: string; ip: string; email: string };
@@ -74,78 +75,81 @@ export default function SecurityClient({ initial, logins }: { initial: { enabled
 
   return (
     <>
-      <div className="adm-cols" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16, alignItems: "start"  }}>
-        <div className="acard">
-          <div className="acard-h">
-            <h3>Two-factor authentication</h3>
-            <span className={"risk-badge " + (enabled ? "risk-LOW" : "risk-HIGH")}>{enabled ? "ON" : "OFF"}</span>
-          </div>
-          <div className="acard-b">
-            {!enabled && !setup && (
-              <>
-                <p style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 0 }}>
-                  Password chara-o keu dhukte na parle valo. Authenticator app (Google Authenticator, Authy, 1Password)
-                  diye 30 second-er ekta code — eta on korle password leak holeo keu vitore dhukte parbe na.
-                </p>
-                <button className="abtn primary" onClick={start} disabled={busy === "setup"}>{busy === "setup" ? "…" : "Set up 2FA"}</button>
-              </>
-            )}
+      {/* 2FA card (lib/features.ts → adminTwoFactor) na thakle Sessions ek column-i thake */}
+      <div className="adm-cols" style={{ display: "grid", gridTemplateColumns: `repeat(${FEATURES.adminTwoFactor ? 2 : 1}, 1fr)`, gap: 16, alignItems: "start"  }}>
+{/* 2FA hidden (lib/features.ts) — switch on korlei card ta ferot ashe */}
+{FEATURES.adminTwoFactor && (<>
+          <div className="acard">
+            <div className="acard-h">
+              <h3>Two-factor authentication</h3>
+              <span className={"risk-badge " + (enabled ? "risk-LOW" : "risk-HIGH")}>{enabled ? "ON" : "OFF"}</span>
+            </div>
+            <div className="acard-b">
+              {!enabled && !setup && (
+                <>
+                  <p style={{ fontSize: 13.5, color: "var(--muted)", marginTop: 0 }}>
+                    Password chara-o keu dhukte na parle valo. Authenticator app (Google Authenticator, Authy, 1Password)
+                    diye 30 second-er ekta code — eta on korle password leak holeo keu vitore dhukte parbe na.
+                  </p>
+                  <button className="abtn primary" onClick={start} disabled={busy === "setup"}>{busy === "setup" ? "…" : "Set up 2FA"}</button>
+                </>
+              )}
 
-            {setup && (
-              <>
-                <p style={{ fontSize: 13.5, marginTop: 0 }}>
-                  Authenticator app kholun → <b>Add account</b> → QR scan korun (ba nicher key ta type korun).
-                </p>
-                <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
-                  <img src={setup.qr} alt="2FA QR" width={160} height={160} style={{ border: "1px solid var(--line)", borderRadius: 8 }} />
-                  <div style={{ fontSize: 12.5 }}>
-                    <div style={{ color: "var(--muted)" }}>Manual key</div>
-                    <code style={{ fontSize: 13, letterSpacing: "1px" }}>{setup.secret}</code>
-                    <div style={{ marginTop: 6 }}><button className="abtn sm" onClick={() => copy(setup.secret)}>Copy key</button></div>
+              {setup && (
+                <>
+                  <p style={{ fontSize: 13.5, marginTop: 0 }}>
+                    Authenticator app kholun → <b>Add account</b> → QR scan korun (ba nicher key ta type korun).
+                  </p>
+                  <div style={{ display: "flex", gap: 16, alignItems: "center", flexWrap: "wrap" }}>
+                    <img src={setup.qr} alt="2FA QR" width={160} height={160} style={{ border: "1px solid var(--line)", borderRadius: 8 }} />
+                    <div style={{ fontSize: 12.5 }}>
+                      <div style={{ color: "var(--muted)" }}>Manual key</div>
+                      <code style={{ fontSize: 13, letterSpacing: "1px" }}>{setup.secret}</code>
+                      <div style={{ marginTop: 6 }}><button className="abtn sm" onClick={() => copy(setup.secret)}>Copy key</button></div>
+                    </div>
                   </div>
-                </div>
-                <div className="af" style={{ marginTop: 14, maxWidth: 260 }}>
-                  <label>App er current 6-digit code</label>
-                  <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="123 456"
-                    style={{ letterSpacing: ".3em", fontSize: 20, textAlign: "center", fontFamily: "ui-monospace, monospace" }} />
-                </div>
-                <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
-                  <button className="abtn primary" onClick={enable} disabled={busy === "enable" || code.replace(/\D/g, "").length < 6}>{busy === "enable" ? "…" : "Verify & turn on"}</button>
-                  <button className="abtn" onClick={() => { setSetup(null); setCode(""); }}>Cancel</button>
-                </div>
-              </>
-            )}
+                  <div className="af" style={{ marginTop: 14, maxWidth: 260 }}>
+                    <label>App er current 6-digit code</label>
+                    <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="123 456"
+                      style={{ letterSpacing: ".3em", fontSize: 20, textAlign: "center", fontFamily: "ui-monospace, monospace" }} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
+                    <button className="abtn primary" onClick={enable} disabled={busy === "enable" || code.replace(/\D/g, "").length < 6}>{busy === "enable" ? "…" : "Verify & turn on"}</button>
+                    <button className="abtn" onClick={() => { setSetup(null); setCode(""); }}>Cancel</button>
+                  </div>
+                </>
+              )}
 
-            {enabled && (
-              <>
-                <div className="noti ok" style={{ marginBottom: 12 }}>2FA চালু আছে — sign in korle authenticator code lagbe.</div>
-                <div className="af" style={{ maxWidth: 260 }}>
-                  <label>Authenticator code (change korte)</label>
-                  <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="123 456"
-                    style={{ letterSpacing: ".3em", fontSize: 20, textAlign: "center", fontFamily: "ui-monospace, monospace" }} />
-                </div>
-                <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
-                  <button className="abtn" onClick={regen} disabled={busy === "recovery"}>{busy === "recovery" ? "…" : "New recovery codes"}</button>
-                  <button className="abtn" onClick={disable} disabled={busy === "disable"}>{busy === "disable" ? "…" : "Turn off 2FA"}</button>
-                </div>
-                <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>{initial.recoveryCodesLeft} recovery code baki (use hole komte thake).</div>
-              </>
-            )}
+              {enabled && (
+                <>
+                  <div className="noti ok" style={{ marginBottom: 12 }}>2FA চালু আছে — sign in korle authenticator code lagbe.</div>
+                  <div className="af" style={{ maxWidth: 260 }}>
+                    <label>Authenticator code (change korte)</label>
+                    <input value={code} onChange={(e) => setCode(e.target.value)} inputMode="numeric" autoComplete="one-time-code" placeholder="123 456"
+                      style={{ letterSpacing: ".3em", fontSize: 20, textAlign: "center", fontFamily: "ui-monospace, monospace" }} />
+                  </div>
+                  <div style={{ display: "flex", gap: 8, marginTop: 10, flexWrap: "wrap" }}>
+                    <button className="abtn" onClick={regen} disabled={busy === "recovery"}>{busy === "recovery" ? "…" : "New recovery codes"}</button>
+                    <button className="abtn" onClick={disable} disabled={busy === "disable"}>{busy === "disable" ? "…" : "Turn off 2FA"}</button>
+                  </div>
+                  <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 8 }}>{initial.recoveryCodesLeft} recovery code baki (use hole komte thake).</div>
+                </>
+              )}
 
-            {codes && (
-              <div style={{ marginTop: 14, border: "1px dashed var(--ok)", borderRadius: 8, padding: 12 }}>
-                <b style={{ fontSize: 13 }}>Recovery codes — ekhon save korun (ar dekhano hobe na)</b>
-                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8, fontFamily: "ui-monospace, monospace", fontSize: 13 }}>
-                  {codes.map((c) => <div key={c}>{c}</div>)}
+              {codes && (
+                <div style={{ marginTop: 14, border: "1px dashed var(--ok)", borderRadius: 8, padding: 12 }}>
+                  <b style={{ fontSize: 13 }}>Recovery codes — ekhon save korun (ar dekhano hobe na)</b>
+                  <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 6, marginTop: 8, fontFamily: "ui-monospace, monospace", fontSize: 13 }}>
+                    {codes.map((c) => <div key={c}>{c}</div>)}
+                  </div>
+                  <button className="abtn sm" style={{ marginTop: 10 }} onClick={() => copy(codes.join("\n"))}>Copy all</button>
                 </div>
-                <button className="abtn sm" style={{ marginTop: 10 }} onClick={() => copy(codes.join("\n"))}>Copy all</button>
-              </div>
-            )}
+              )}
 
-            {msg && <div className={"noti " + (msg.ok ? "ok" : "err")} style={{ marginTop: 12 }}>{msg.text}</div>}
+              {msg && <div className={"noti " + (msg.ok ? "ok" : "err")} style={{ marginTop: 12 }}>{msg.text}</div>}
+            </div>
           </div>
-        </div>
-
+</>)}
         <div className="acard">
           <div className="acard-h"><h3>Sessions</h3><span style={{ fontSize: 12, color: "var(--muted)" }}>session version {version}</span></div>
           <div className="acard-b">

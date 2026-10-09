@@ -80,7 +80,7 @@ export async function sendTest(campaign: { subject: string; body: string; ctaLab
   const transport = await transportFor(s);
   if (!transport) return { ok: false, error: "SMTP is not configured (Settings → Notifications)." };
   const url = storeUrl(s);
-  const brand = s.store?.name || "SINZO";
+  const brand = s.store?.name || "TRENDING'S";
   const html = campaignHtml({ ...campaign, storeName: brand, unsub: unsubscribeUrl(url, to), url });
   try {
     await transport.sendMail({
@@ -108,7 +108,7 @@ export async function sendBatch(campaignId: number): Promise<BatchResult> {
   if (!transport) return { sent: 0, failed: 0, remaining: await audienceCount(), done: false, error: "SMTP is not configured (Settings → Notifications)." };
 
   const url = storeUrl(s);
-  const brand = s.store?.name || "SINZO";
+  const brand = s.store?.name || "TRENDING'S";
 
   const rows = await db.subscriber.findMany({
     where: { unsubscribed: false, id: { gt: c.cursorId } },

@@ -19,7 +19,7 @@ export async function adminTransport() {
 
 export async function mailFrom() {
   const s = envFallback(await getSettings());
-  const brand = s.store?.name || "SINZO";
+  const brand = s.store?.name || "TRENDING'S";
   const fromAddr = (s.notifications as any)?.smtp?.user || "no-reply@sinzo.dev";
   return { brand, fromAddr, url: storeUrl(s) };
 }

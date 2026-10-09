@@ -27,7 +27,7 @@ async function sendTelegram(token: string, chatId: string, text: string): Promis
    plain-text alternative part, identity footer. Gmail shows "Report not spam"
    once a recipient marks it — deliverability then improves for later mails. */
 function fromHeader(cfg: any, s?: any): string {
-  const brand = s?.store?.name || "SINZO";
+  const brand = s?.store?.name || "TRENDING'S";
   const email = cfg.user || cfg.from;
   return cfg.from && cfg.from !== email ? `${brand} <${cfg.from}>` : `${brand} <${email}>`;
 }
@@ -55,7 +55,7 @@ async function sendMail(cfg: any, to: string, subject: string, html: string, tex
   } catch { return false; }
 }
 
-function emailHtml(title: string, body: string, storeName = "SINZO"): string {
+function emailHtml(title: string, body: string, storeName = "TRENDING'S"): string {
   return `<div style="font-family:Arial,sans-serif;max-width:560px;margin:0 auto;padding:24px;color:#141414">
     <div style="font-size:22px;letter-spacing:.25em;border-bottom:2px solid #141414;padding-bottom:12px;margin-bottom:18px">${storeName}</div>
     <h2 style="margin:0 0 10px">${title}</h2>
@@ -85,7 +85,7 @@ export async function notifyAdmin(evt: NotifyEvent, title: string, body: string,
         telegram = await sendTelegram(n.telegramBotToken, n.telegramChatId, `<b>${title}</b>\n${body}`);
       }
       if (n.smtp?.host && n.smtp?.user && n.smtp?.pass && n.notifyEmail) {
-        email = await sendMail(n.smtp, n.notifyEmail, `[SINZO] ${title}`, emailHtml(title, body, s.store?.name), undefined, s);
+        email = await sendMail(n.smtp, n.notifyEmail, `[TRENDING'S] ${title}`, emailHtml(title, body, s.store?.name), undefined, s);
       }
       if (n.waEnabled !== false && n.waNotifyNumber) {
         const st = await waStatus();
@@ -134,7 +134,7 @@ export async function emailCustomerOrder(to: string, name: string, order: { code
        <div style="margin-top:8px;color:#666">Estimated delivery: ${order.area === "INSIDE_DHAKA" ? "1–2 days (Inside Dhaka)" : "2–4 days (Outside Dhaka)"}</div>
        ${actionButtons(url, order.code)}`
     );
-    const brand = s.store?.name || "SINZO";
+    const brand = s.store?.name || "TRENDING'S";
     const ok = await sendMail(n.smtp, to, `${brand}: Order ${order.code} confirmed`, html, undefined, s);
     return { configured: true, ok };
   } catch { return { configured: false, ok: false }; }
@@ -156,23 +156,23 @@ export async function emailCustomerStatus(
     const courier = order.courierName || "Steadfast";
     let title = "", body = "", subject = "";
     if (kind === "in_review") {
-      subject = `SINZO: Order ${order.code} received by ${courier}`;
+      subject = `TRENDING'S: Order ${order.code} received by ${courier}`;
       title = `Your order is with ${courier}`;
       body = `Hi ${name},<br><br>Apnar order <b>${order.code}</b> amra <b>${courier}</b>-er kache diye diyechi. Ekhon courier review cholche — verify holei rider pickup korbe.<br><br>
         Delivery: ${order.area === "INSIDE_DHAKA" ? "1–2 days (Inside Dhaka)" : "2–4 days (Outside Dhaka)"} · Amount payable: <b>৳${Math.round(order.total).toLocaleString("en-IN")}</b> (Cash on Delivery).<br><br>
         Niche Track Order click kore kokhono e kokhono parcel kothay ache dekhte parben.`;
     } else if (kind === "rider") {
-      subject = `SINZO: Order ${order.code} out for delivery`;
+      subject = `TRENDING'S: Order ${order.code} out for delivery`;
       title = "Rider assigned — parcel is on the way";
       body = `Hi ${name},<br><br>Good news! Apnar parcel <b>${order.code}</b> rider er kache — ekhon delivery er pothe.<br><br>
         <b>Phone khule rakhben</b> — rider delivery-er age call korte pare. Amount payable: <b>৳${Math.round(order.total).toLocaleString("en-IN")}</b> (Cash on Delivery).`;
     } else if (kind === "cancelled") {
-      subject = `SINZO: Order ${order.code} cancelled`;
+      subject = `TRENDING'S: Order ${order.code} cancelled`;
       title = `Order ${order.code} has been cancelled`;
       body = `Hi ${name},<br><br>Apnar order <b>${order.code}</b> cancel kora hoyeche. Eta Cash on Delivery order chhilo, tai apnar kono taka jay ni — kono chinta nai.<br><br>
         Bhul ba onno kono proyojon hole amader WhatsApp/phone e janaben — abar order kore dibo.`;
     } else {
-      subject = `SINZO: Order ${order.code} shipped`;
+      subject = `TRENDING'S: Order ${order.code} shipped`;
       title = `Order ${order.code} has been shipped`;
       body = `Hi ${name}, apnar order ship kora hoyeche. Shighroi e pouchabe.`;
     }

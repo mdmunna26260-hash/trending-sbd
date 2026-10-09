@@ -26,6 +26,14 @@ const DEFAULT_SECTIONS = [
 
 const CAT_IMG: Record<string, string> = { shirts: "shirt", outerwear: "coat", dresses: "dress", bottoms: "trousers", knitwear: "knit", accessories: "bag", "t-shirts": "tee" };
 
+/* Printed service ticker under the hero — the promise, set in mono caps. */
+const TICKER_ITEMS = [
+  "Cash on delivery — all 64 districts",
+  "Dispatch within 24–72 hours",
+  "7-day easy returns",
+  "100% authentic pieces",
+];
+
 /* editorial section header: 01 — Eyebrow / Title / View All */
 function Head({ no, eyebrow, title, href }: { no: string; eyebrow: string; title: string; href?: string }) {
   return (
@@ -64,7 +72,7 @@ function Quote({ r, hidden }: { r: HomeReview; hidden?: boolean }) {
       <span className="q-mark" aria-hidden="true">“</span>
       <span className="stars" role="img" aria-label={`${rating} out of 5 stars`}>{"★".repeat(rating)}{"☆".repeat(5 - rating)}</span>
       <p>{r.text}</p>
-      <div className="who">{r.name || "Customer"} — {(r.product?.title || "SINZO").slice(0, 24)}…</div>
+      <div className="who">{r.name || "Customer"} — {(r.product?.title || "TRENDING'S").slice(0, 24)}…</div>
     </div>
   );
 }
@@ -74,7 +82,7 @@ export default async function HomePage() {
     return await HomeContent();
   } catch (e: any) {
     console.error("HomePage render error:", e?.message);
-    return <div className="container" style={{ padding: "80px 24px", textAlign: "center" }}><h1 className="brand-wm">SINZO</h1><p style={{ color: "var(--muted)" }}>Page load korte halka somossa hocche — refresh korun.</p></div>;
+    return <div className="container" style={{ padding: "80px 24px", textAlign: "center" }}><h1 className="brand-wm">TRENDING&apos;S</h1><p style={{ color: "var(--muted)" }}>Page load korte halka somossa hocche — refresh korun.</p></div>;
   }
 }
 
@@ -132,54 +140,63 @@ async function HomeContent() {
         colors: Array.from(new Set((x.product.variants || []).filter((v: any) => (x.product.preorder || v.stock > 0) && v.color).map((v: any) => v.color))),
       }));
 
-  const values = ["Cash on Delivery", "Delivery in 24–72h", "7-Day Easy Returns", "100% Authentic"];
+
 
   const sections: Record<string, React.ReactNode> = {
     hero: (
-      <section className="hero" key="hero">
-        {hp.heroImage && (
-          <>
-            {/* LCP element: hand the URL to the preload scanner instead of waiting for the client
-                component to render. Next hoists this <link> out of the body into <head>. */}
-            <link
-              rel="preload"
-              as="image"
-              fetchPriority="high"
-              href={imgSrc(vb(hp.heroImage), 1200)}
-              imageSrcSet={[600, 1000].map((n) => `${imgSrc(vb(hp.heroImage), n)} ${n}w`).join(", ")}
-              imageSizes="100vw"
-            />
-            <div className="hero-media">
-              {/* The <img> keeps its kenburns entrance; this wrapper carries the scroll-driven
-                  parallax, so the two animations never fight over one element. */}
-              <SmartImg className="hero-img" priority src={vb(hp.heroImage)} alt={cfg.store?.name || "Hero"} sizes="100vw" widths={[600, 1000]} />
-            </div>
-          </>
-        )}
-        {hp.heroImage && (
-          <div className="hero-cue" aria-hidden><i /><span>Scroll</span></div>
-        )}
-        <div className="hero-overlay">
-          <div className="hero-content">
-            <div className="eyebrow" style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <i style={{ display: "inline-block", width: 26, height: 1, background: "var(--text)" }} />
-              {cfg.store?.tagline || "New Season"}
+      <section className="ed-hero" key="hero">
+        <div className="ed-hero-grid container">
+          <div className="ed-hero-copy">
+            <div className="ed-kicker">
+              <span className="ed-kicker-mark" aria-hidden="true" />
+              {cfg.store?.tagline || "Season 01 — Dhaka"}
             </div>
             <h1>{hp.heroTitle}</h1>
             <p>{hp.heroSubtitle}</p>
-            <div style={{ display: "flex", gap: 12, flexWrap: "wrap" }}>
+            <div className="ed-hero-cta">
               {/* the two highest-intent clicks on the site, above the fold: warm them right away */}
-              <Link className="btn" href="/products" prefetch>{hp.heroCta || "Shop Now"}</Link>
-              <Link className="btn btn-ghost" href="/track" prefetch>Track Order</Link>
+              <Link className="btn" href="/products" prefetch>{hp.heroCta || "Shop the drop"}</Link>
+              <Link className="btn btn-outline" href="/track" prefetch>Track order</Link>
             </div>
+            {/* print-colophon spec row — the COD/return promise, told like a data sheet */}
+            <dl className="ed-hero-specs">
+              <div><dt>Delivery</dt><dd>24–72h, nationwide</dd></div>
+              <div><dt>Payment</dt><dd>Cash on delivery</dd></div>
+              <div><dt>Returns</dt><dd>7 days, no questions</dd></div>
+            </dl>
+          </div>
+          <div className="ed-hero-art">
+            {hp.heroImage ? (
+              <>
+                {/* LCP element: hand the URL to the preload scanner instead of waiting for the client
+                    component to render. Next hoists this <link> out of the body into <head>.
+                    The plate is half-width on desktop, full-width under 900px. */}
+                <link
+                  rel="preload"
+                  as="image"
+                  fetchPriority="high"
+                  href={imgSrc(vb(hp.heroImage), 1000)}
+                  imageSrcSet={[600, 1000].map((n) => `${imgSrc(vb(hp.heroImage), n)} ${n}w`).join(", ")}
+                  imageSizes="(max-width: 899px) 92vw, 46vw"
+                />
+                <figure className="ed-frame">
+                  <SmartImg className="ed-frame-img" priority src={vb(hp.heroImage)} alt={cfg.store?.name || "Hero"} sizes="(max-width: 899px) 92vw, 46vw" widths={[600, 1000]} />
+                  <figcaption className="ed-frame-cap">
+                    <span>Fig. 01 — {cfg.store?.name || "Store"}</span>
+                    <span>Season 01 / Dhaka</span>
+                  </figcaption>
+                </figure>
+                <span className="ed-sticker" aria-hidden="true">New<br />Drop</span>
+              </>
+            ) : null}
           </div>
         </div>
       </section>
     ),
     values: (
-      <div className="values" key="values">
-        <div className="container values-inner2">
-          {values.map((v, i) => <span key={v} className="reveal" style={{ "--rd": i } as CSSProperties}>{v}</span>)}
+      <div className="ed-ticker" key="values" role="marquee" aria-hidden="true">
+        <div className="ed-ticker-track">
+          {[...TICKER_ITEMS, ...TICKER_ITEMS].map((t, i) => <span key={"tk" + i}>{t}</span>)}
         </div>
       </div>
     ),

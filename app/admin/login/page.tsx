@@ -91,7 +91,7 @@ export default function AdminLogin() {
   return (
     <div className="login-wrap">
       <form className="login-card" onSubmit={submit}>
-        <span className="logo">SINZO</span>
+        <span className="logo">TRENDING&apos;S</span>
         <div className="login-sub">
           {step === "code" ? "Two-factor — authenticator app er 6 digit code" : "Admin Panel — sign in to continue"}
         </div>
@@ -159,7 +159,7 @@ export default function AdminLogin() {
               If an admin account exists for <b style={{ color: "var(--ad-text)" }}>{email}</b>, we&apos;ve sent a password reset link. Check your inbox (and spam folder).
             </div>
             {forgotOk?.devPreviewUrl && (
-              <div style={{ marginTop: 12, padding: 12, background: "#fff7ed", border: "1px solid #fed7aa", borderRadius: 8, fontSize: 12.5, color: "#9a3412", lineHeight: 1.55 }}>
+              <div style={{ marginTop: 12, padding: 12, background: "rgba(246,189,75,.12)", border: "1px solid rgba(246,189,75,.30)", borderRadius: 10, fontSize: 12.5, color: "#ffd88f", lineHeight: 1.55 }}>
                 <b>Dev preview:</b> SMTP isn&apos;t configured yet. Use this link to finish the reset:
                 <a href={forgotOk.devPreviewUrl} style={{ display: "block", color: "#c2410c", textDecoration: "underline", wordBreak: "break-all", marginTop: 6 }}>{forgotOk.devPreviewUrl}</a>
               </div>
