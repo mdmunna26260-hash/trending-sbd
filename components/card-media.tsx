@@ -3,6 +3,7 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import CardGallery from "./card-gallery";
 import CardImg from "./card-img";
+import { FEATURES } from "@/lib/features";
 import SegmentedProgress from "./segmented-progress";
 
 /* The card's media block: the product photo(s) plus the segmented image progress bar that sits
@@ -22,16 +23,18 @@ export default function CardMedia({ images, image, alt, slug, children }: {
 }) {
   const pics = (images || []).filter(Boolean);
   const [i, setI] = useState(0);
+  const swipeEnabled = FEATURES.cardImageSwipe && pics.length > 1;
+  const coverUrl = image || pics[0];
   return (
     <div className="pcard-media">
       {/* `children` = the badges, which must stay inside the clipped image box */}
       <div className="pcard-img" data-vt-slug={slug || undefined}>
-        {pics.length > 1
+        {swipeEnabled
           ? <CardGallery images={pics} alt={alt} onIndexChange={setI} />
-          : image ? <CardImg url={image} alt={alt} slug={slug} /> : null}
+          : coverUrl ? <CardImg url={coverUrl} alt={alt} slug={slug} /> : null}
         {children}
       </div>
-      {pics.length > 1 && (
+      {swipeEnabled && (
         <SegmentedProgress count={pics.length} activeIndex={i} className="pcard-progress" />
       )}
     </div>

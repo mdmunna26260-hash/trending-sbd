@@ -88,7 +88,7 @@ test('every hidden API base is a real route on disk', () => {
 });
 
 test('switches are plain booleans and names are stable', () => {
-  assert.deepEqual(KEYS, ['adminEngagement', 'adminReviews', 'adminWhatsapp', 'adminCampaignLinks', 'adminTwoFactor', 'googleLogin', 'freeDelivery']);
+  assert.deepEqual(KEYS, ['adminEngagement', 'adminReviews', 'adminWhatsapp', 'adminCampaignLinks', 'adminTwoFactor', 'googleLogin', 'freeDelivery', 'soldCount', 'colorGroups', 'cardImageSwipe']);
   for (const k of KEYS) assert.equal(typeof FEATURES[k], 'boolean', k);
 });
 

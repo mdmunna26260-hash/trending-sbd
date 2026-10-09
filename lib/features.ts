@@ -65,6 +65,12 @@ export const FEATURES = {
       purono DB value (5000) ba purono FREESHIP code diye-o free delivery paowa jabe na.
       DB te value/row rakha ache: switch on + coupon abar active korlei sob ferot. */
   freeDelivery: false,
+  /** PDP "Sold: N" badge + Admin product editor Sold count (fixed/random) block */
+  soldCount: false,
+  /** Color Group / linked color products + variant linked color image */
+  colorGroups: false,
+  /** Product card horizontal drag-to-swipe gallery + segmented progress bar under card photo */
+  cardImageSwipe: false,
 } as const;
 
 export type FeatureKey = keyof typeof FEATURES;
@@ -91,6 +97,9 @@ export const HIDDEN_ADMIN_PAGES: Record<FeatureKey, string[]> = {
   adminTwoFactor: [],     // Security page thake (Sessions + login history), sudhu 2FA card + login step off
   googleLogin: [],        // admin page nei — customer login page + settings card
   freeDelivery: [],       // route nei — pricing (lib/checkout-pricing.ts) + settings/coupon UI nijei guard kore
+  soldCount: [],
+  colorGroups: [],
+  cardImageSwipe: [],
 };
 
 export const HIDDEN_ADMIN_APIS: Record<FeatureKey, string[]> = {
@@ -111,6 +120,9 @@ export const HIDDEN_ADMIN_APIS: Record<FeatureKey, string[]> = {
   adminTwoFactor: [],     // /api/admin/login/2fa + /api/admin/security nijei guard kore
   googleLogin: ["/api/auth/google"], // callback sub-path o dhora porbe
   freeDelivery: [],
+  soldCount: [],
+  colorGroups: ["/api/admin/color-groups"],
+  cardImageSwipe: [],
 };
 
 const matches = (pathname: string, base: string) => pathname === base || pathname.startsWith(base + "/");

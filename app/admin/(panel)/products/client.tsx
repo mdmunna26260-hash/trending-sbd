@@ -1,5 +1,6 @@
 "use client";
 import { afetch, withToken } from "@/lib/afetch";
+import { FEATURES } from "@/lib/features";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 
@@ -13,6 +14,7 @@ function VariantImgCell({ v, i, setEdit }: { v: any; i: number; setEdit: any }) 
   const setImg = (url: string) => {
     setEdit((e: any) => { const vs = [...e.variants]; vs[i] = { ...v, image: url }; return { ...e, variants: vs }; });
   };
+  if (!FEATURES.colorGroups) return <div aria-hidden />;
   return (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
       {v.image ? (
@@ -86,6 +88,7 @@ export default function ProductsClient({ initial, categories }: { initial: P[]; 
   const [colorGroups, setColorGroups] = useState<any[]>([]);
 
   const loadColorGroups = () => {
+    if (!FEATURES.colorGroups) return;
     afetch("/api/admin/color-groups")
       .then((r) => r.json())
       .then((j) => setColorGroups(j.groups || []))
@@ -328,6 +331,7 @@ export default function ProductsClient({ initial, categories }: { initial: P[]; 
                   Compare-at price beshi hole countdown dekhabe (PDP + card e "Sale ends in 2h 34m"). Time hole automatic off.
                 </div>
               </div>
+{FEATURES.soldCount && (
               <div className="af full"><label>Sold count (product page e "Sold: N" dekhabe)</label>
                 <div style={{ display: "flex", gap: 18, marginBottom: 8, fontSize: 13 }}>
                   <label style={{ display: "flex", alignItems: "center", gap: 6, cursor: "pointer" }}>
@@ -347,6 +351,7 @@ export default function ProductsClient({ initial, categories }: { initial: P[]; 
                     : "Fixed mode e soho ei number dekhabe. Khaali rakhle sold count dekhabe na."}
                 </div>
               </div>
+              )}
               <div className="af full"><label>Pre-order (stock ashe na, age order nito jay)</label>
                 <label style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 13, marginBottom: 8, cursor: "pointer" }}>
                   <input type="checkbox" checked={!!edit.preorder} onChange={(e) => setEdit({ ...edit, preorder: e.target.checked })} />
@@ -420,6 +425,7 @@ export default function ProductsClient({ initial, categories }: { initial: P[]; 
             ))}
 
             {/* ---- COLOR GROUP (linked color products) ---- */}
+            {FEATURES.colorGroups && (
             <div className="af full" style={{ marginTop: 18, borderTop: "1px solid #e4e7ec", paddingTop: 14 }}>
               <label style={{ fontWeight: 600, fontSize: 13.5 }}>Color Group (linked color products)</label>
               <div style={{ fontSize: 12, color: "var(--muted)", marginTop: 4, marginBottom: 10 }}>
@@ -489,6 +495,7 @@ export default function ProductsClient({ initial, categories }: { initial: P[]; 
                 </div>
               )}
             </div>
+            )}
 
             <div className="af full" style={{ marginTop: 16 }}>
               <label>Size chart image (optional — product page-er "Size chart" button e dekhabe)</label>

@@ -61,7 +61,7 @@ export default async function PDP(props: { params: Promise<{ slug: string }>; se
 
   // TASK: color family — DB-side query on indexed colorGroupId, selector fields only
   let colorFamily: { id: number; slug: string; colorName: string | null; colorImage: string | null }[] = [];
-  if (p.colorGroupId) {
+  if (FEATURES.colorGroups && p.colorGroupId) {
     const fam = await db.product.findMany({
       where: { colorGroupId: p.colorGroupId, status: "ACTIVE", id: { not: p.id } },
       select: {
@@ -293,7 +293,7 @@ export default async function PDP(props: { params: Promise<{ slug: string }>; se
         <ProductPageClient
           policies={{ inside: s.shipping?.estimateInside, outside: s.shipping?.estimateOutside, freeAt: FEATURES.freeDelivery ? s.shipping?.freeShippingThreshold || 0 : 0 }}
           sizeChartImage={p.sizeChartImage || null}
-          soldCount={p.soldCount ?? null}
+          soldCount={FEATURES.soldCount ? (p.soldCount ?? null) : null}
           saleEnds={p.saleEnds ? p.saleEnds.toISOString() : null}
           preorder={!!p.preorder}
           preorderDate={p.preorderDate ? p.preorderDate.toISOString() : null}
@@ -304,11 +304,11 @@ export default async function PDP(props: { params: Promise<{ slug: string }>; se
             // gallery = product images + any linked variant (color) images appended
             images: [
               ...p.images.map((i) => ({ url: i.url, alt: i.alt || p.title })),
-              ...Array.from(new Set(p.variants.filter((v) => v.stock > 0 && v.image && !p.images.some((i) => i.url === v.image)).map((v) => v.image!)))
+              ...(FEATURES.colorGroups ? Array.from(new Set(p.variants.filter((v) => v.stock > 0 && v.image && !p.images.some((i) => i.url === v.image)).map((v) => v.image!))) : [])
                 .filter(Boolean)
                 .map((u) => ({ url: u, alt: `${p.title}` })),
             ],
-            variants: p.variants.map((v) => ({ id: v.id, size: v.size, color: v.color, stock: v.stock, price: v.price, image: v.image || null })),
+            variants: p.variants.map((v) => ({ id: v.id, size: v.size, color: v.color, stock: v.stock, price: v.price, image: FEATURES.colorGroups ? (v.image || null) : null })),
             categoryName: p.category?.name,
             categorySlug: p.category?.slug,
             colorName: p.colorName,

@@ -13,6 +13,7 @@ import SegmentedProgress from "@/components/segmented-progress";
 import { notifyHeroMounted } from "@/components/view-transition";
 // LiveWatching import removed — live views OFF per user request
 import SoldCount from "@/components/sold-count";
+import { FEATURES } from "@/lib/features";
 import { normAlpha, ALPHA_ORDER } from "@/lib/size-rec";
 
 type V = { id: number; size: string | null; color: string | null; stock: number; price: number | null; image?: string | null };
@@ -252,7 +253,7 @@ export default function ProductPageClient({ product, sizeChartHtml, sizeChartIma
      PDP route, staggered (~0.8s apart, after the page settles). Clicking a
      color thumbnail then opens an already-cached page instantly. */
   useEffect(() => {
-    if (!colorFamily.length) return;
+    if (!FEATURES.colorGroups || !colorFamily.length) return;
     const timers: any[] = [];
     colorFamily.forEach((c, i) => {
       timers.push(setTimeout(() => {
@@ -392,7 +393,7 @@ export default function ProductPageClient({ product, sizeChartHtml, sizeChartIma
           {product.shortDesc && <p className="pdp-desc">{product.shortDesc}</p>}
 
           {/* ---- COLOR FAMILY selector (linked products, real navigation) ---- */}
-          {colorFamily.length > 0 && (
+          {FEATURES.colorGroups && colorFamily.length > 0 && (
             <div className="color-family">
               <div className="opt-label">Color {product.colorName ? <span style={{ textTransform: "none", letterSpacing: 0 }}>— {product.colorName}</span> : null}</div>
               <div className="color-family-row" role="listbox" aria-label="Color">

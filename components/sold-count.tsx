@@ -1,5 +1,6 @@
 "use client";
 import { useEffect, useState } from "react";
+import { FEATURES } from "@/lib/features";
 
 /* Sold count — two modes:
    - "fixed":  show the exact admin-set number (classic behaviour)
@@ -16,7 +17,7 @@ export default function SoldCount({ productId, soldCount, soldMode }: { productI
   const [n, setN] = useState<number | null>(() => (soldMode === "random" ? null : soldCount && soldCount > 0 ? soldCount : null));
 
   useEffect(() => {
-    if (soldMode !== "random") return;
+    if (!FEATURES.soldCount || soldMode !== "random") return;
     const base = baseFor(productId);
     const KEY = "sinzo_sold_" + productId;
     let acc = 0;
@@ -39,7 +40,7 @@ export default function SoldCount({ productId, soldCount, soldMode }: { productI
     return () => clearTimeout(t);
   }, [productId, soldMode]);
 
-  if (n == null || n <= 0) return null;
+  if (!FEATURES.soldCount || n == null || n <= 0) return null;
   return (
     <div className="pdp-sold" style={{ display: "flex", alignItems: "center", gap: 6, margin: "-2px 0 6px" }}>
       <span style={{ fontSize: 12, fontWeight: 700, color: "var(--accent)", background: "rgba(154,123,79,.10)", padding: "4px 10px", borderRadius: 99 }}>
