@@ -45,7 +45,10 @@ export async function sendAdminResetEmail(to: string, token: string): Promise<{ 
 
   const transport = await adminTransport();
   if (!transport) {
-    // SMTP not configured — surface a dev preview link so the flow is still usable.
+    if (process.env.NODE_ENV === "production") {
+      return { ok: false, error: "SMTP not configured", transport: false };
+    }
+    // Local dev only: surface a dev preview link so the flow is usable without a mail server.
     return { ok: true, devPreviewUrl: resetUrl, transport: false };
   }
   try {

@@ -3,8 +3,10 @@ const {PrismaClient}=require('@prisma/client');
 const db=new PrismaClient();
 (async()=>{
   const bcrypt = require('bcryptjs');
-  // seed admin user + basic settings
-  const hash = await bcrypt.hash('do you love me?', 10);
+  const crypto = require('crypto');
+  // seed admin user + basic settings (never hardcode a static password)
+  const adminPassRaw = process.env.SEED_ADMIN_PASS || crypto.randomBytes(9).toString('base64url');
+  const hash = await bcrypt.hash(adminPassRaw, 10);
   const u = await db.user.upsert({ where: { email: 'Sinzo.bd@gmail.com' }, update: {}, create: { email: 'Sinzo.bd@gmail.com', password: hash, name: 'Super Admin', role: 'SUPER_ADMIN' } });
   console.log('admin user:', u.email);
   // add a few test products with variants and images

@@ -547,7 +547,17 @@ export default function ProductPageClient({ product, sizeChartHtml, sizeChartIma
             <button className="modal-close" onClick={() => setChart(false)} aria-label="Close">×</button>
             <h3>Size Chart</h3>
             {sizeChartImage && <img src={sizeChartImage} alt="Size chart" className="sizechart-img" />}
-            {!sizeChartImage && sizeChartHtml && <div dangerouslySetInnerHTML={{ __html: sizeChartHtml.replace(/<table/, '<table class="sizechart-table"') }} />}
+            {!sizeChartImage && sizeChartHtml && (
+              <div
+                dangerouslySetInnerHTML={{
+                  __html: sizeChartHtml
+                    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
+                    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
+                    .replace(/javascript\s*:/gi, "")
+                    .replace(/<table/, '<table class="sizechart-table"'),
+                }}
+              />
+            )}
             <p style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 14 }}>Measurements are approximate. Between sizes? We recommend sizing up.</p>
           </div>
         </div>

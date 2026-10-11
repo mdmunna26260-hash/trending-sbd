@@ -131,7 +131,8 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       ${theme.productImageRatio ? `--img-ratio:${String(theme.productImageRatio).replace(":", " / ")};` : "--img-ratio:3 / 4;"}
       ${theme.containerWidth ? `--container:${theme.containerWidth}px;` : ""}
     }`;
-  const gtmId = cfg?.integrations?.gtmId || "";
+  const rawGtmId = String(cfg?.integrations?.gtmId || "").trim();
+  const gtmId = /^GTM-[A-Z0-9]{4,16}$/i.test(rawGtmId) ? rawGtmId : "";
   return (
     <html lang="en" suppressHydrationWarning>
       <head>

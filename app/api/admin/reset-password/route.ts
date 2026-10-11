@@ -20,8 +20,8 @@ export async function POST(req: Request) {
     const { token, newPassword } = await req.json();
     const raw = String(token || "").trim();
     const pwd = String(newPassword || "");
-    if (raw.length < 20 || pwd.length < 4) {
-      return NextResponse.json({ error: "Password must be at least 4 characters." }, { status: 400 });
+    if (raw.length < 20 || pwd.length < 8) {
+      return NextResponse.json({ error: "Password must be at least 8 characters." }, { status: 400 });
     }
     const hash = crypto.createHash("sha256").update(raw).digest("hex");
 

@@ -46,19 +46,25 @@ export async function POST(req: Request) {
       const raw = crypto.randomBytes(32).toString("hex");
       const hash = crypto.createHash("sha256").update(raw).digest("hex");
       const expires = new Date(Date.now() + 30 * 60 * 1000); // 30 minutes
-      await db.user.update({
-        where: { id: user.id },
-        data: { resetToken: hash, resetTokenExpires: expires },
-      });
       const res = await sendAdminResetEmail(user.email, raw);
       if (res.ok) {
-        devPreviewUrl = res.devPreviewUrl;
+        await db.user.update({
+          where: { id: user.id },
+          data: { resetToken: hash, resetTokenExpires: expires },
+        });
+        if (process.env.NODE_ENV !== "production") {
+          devPreviewUrl = res.devPreviewUrl;
+        }
         transport = !!res.transport;
       }
     }
 
     await wait(Math.max(0, 600 - (Date.now() - start)));
-    return NextResponse.json({ ok: true, devPreviewUrl, transportConfigured: transport });
+    return NextResponse.json({
+      ok: true,
+      ...(process.env.NODE_ENV !== "production" && devPreviewUrl ? { devPreviewUrl } : {}),
+      transportConfigured: transport,
+    });
   } catch {
     return NextResponse.json({ ok: true }); // never leak error details
   }

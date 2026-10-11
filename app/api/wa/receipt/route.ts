@@ -1,13 +1,13 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { bridgeKey } from "@/lib/wa";
+import { bridgeAuthorized } from "@/lib/wa";
 export const dynamic = "force-dynamic";
 
 /* Delivery / read receipts from the bridge (Baileys `messages.update`).
    The bridge is the only caller (x-bridge-key), and the row it updates is the one we sent:
    matched by the WhatsApp message id we stored when the send succeeded. */
 export async function POST(req: Request) {
-  if ((req.headers.get("x-bridge-key") || "") !== (await bridgeKey())) {
+  if (!(await bridgeAuthorized(req))) {
     return NextResponse.json({ error: "bad bridge key" }, { status: 401 });
   }
   const { ensureExtraTables } = await import("@/lib/db-ensure");

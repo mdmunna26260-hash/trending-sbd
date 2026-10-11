@@ -18,7 +18,15 @@ export async function bridgeKey(): Promise<string> {
     const configured = (s as any).notifications?.waBridgeKey;
     if (configured) return String(configured);
   } catch {}
-  return process.env.WA_BRIDGE_KEY || "local-bridge";
+  if (process.env.WA_BRIDGE_KEY) return process.env.WA_BRIDGE_KEY;
+  return process.env.NODE_ENV === "production" ? "" : "local-bridge";
+}
+export async function bridgeAuthorized(req: Request): Promise<boolean> {
+  const sent = (req.headers.get("x-bridge-key") || "").trim();
+  if (!sent) return false;
+  const expected = await bridgeKey();
+  if (!expected) return false;
+  return sent === expected;
 }
 async function base(): Promise<string> {
   try {
@@ -138,9 +146,11 @@ export async function waWorkerKey(): Promise<string> {
 }
 /** True when the request carries the worker key (or the bridge key — same trust level). */
 export async function waWorkerAuthorized(req: Request): Promise<boolean> {
-  const sent = req.headers.get("x-wa-worker-key") || "";
+  const sent = (req.headers.get("x-wa-worker-key") || "").trim();
   if (!sent) return false;
   const expected = await waWorkerKey();
   const bridge = await bridgeKey();
-  return sent === expected || sent === bridge;
+  if (expected && sent === expected) return true;
+  if (bridge && sent === bridge) return true;
+  return false;
 }

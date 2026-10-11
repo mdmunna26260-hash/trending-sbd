@@ -26,7 +26,7 @@ function ResetForm() {
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErr("");
-    if (pw.length < 4) { setErr("Password must be at least 4 characters."); return; }
+    if (pw.length < 8) { setErr("Password must be at least 8 characters."); return; }
     if (pw !== pw2) { setErr("Passwords don't match."); return; }
     setBusy(true);
     try {
@@ -73,11 +73,11 @@ function ResetForm() {
       <div style={{ marginTop: 18 }}>
         <div className="field">
           <label>New password</label>
-          <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="At least 4 characters" autoFocus minLength={4} />
+          <input type="password" value={pw} onChange={e => setPw(e.target.value)} placeholder="At least 8 characters" autoFocus minLength={8} />
         </div>
         <div className="field">
           <label>Confirm password</label>
-          <input type="password" value={pw2} onChange={e => setPw2(e.target.value)} placeholder="Type again" minLength={4} />
+          <input type="password" value={pw2} onChange={e => setPw2(e.target.value)} placeholder="Type again" minLength={8} />
         </div>
         {err && <div className="noti err">{err}</div>}
         <button className="abtn primary" style={{ width: "100%", padding: 13, fontSize: 14, marginTop: 10 }} disabled={busy}>{busy ? "Saving…" : "Save new password"}</button>

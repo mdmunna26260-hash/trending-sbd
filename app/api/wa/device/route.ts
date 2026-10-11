@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
-import { bridgeKey } from "@/lib/wa";
+import { bridgeAuthorized } from "@/lib/wa";
 import { logApp } from "@/lib/logs";
 export const dynamic = "force-dynamic";
 
@@ -10,7 +10,7 @@ const STATUSES = ["CONNECTED", "DISCONNECTED", "QR", "PAUSED", "BANNED"];
    The admin Devices screen also polls, but this is what makes the panel update the moment a
    number drops — and what raises the alert when WhatsApp removes a session. */
 export async function POST(req: Request) {
-  if ((req.headers.get("x-bridge-key") || "") !== (await bridgeKey())) {
+  if (!(await bridgeAuthorized(req))) {
     return NextResponse.json({ error: "bad bridge key" }, { status: 401 });
   }
   const { ensureExtraTables } = await import("@/lib/db-ensure");
