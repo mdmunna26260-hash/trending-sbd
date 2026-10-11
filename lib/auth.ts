@@ -89,7 +89,7 @@ export function adminLanding(user: SessionUser): string {
   if (can(user, "products")) return "/admin/products";
   /* Engagement hidden thakle /admin/marketing-o hidden — MARKETING role er user ke tar porer
      allowed page e pathai, noile login → hidden page → ferot login loop hoto. */
-  if (FEATURES.adminEngagement && can(user, "marketing")) return "/admin/marketing";
+  if (FEATURES.adminAbandonedCart && can(user, "marketing")) return "/admin/marketing";
   if (can(user, "coupons")) return "/admin/coupons";
   return "/admin/login";
 }

@@ -75,6 +75,7 @@ const DEFAULT_SETTINGS = {
     metaTitle: "TRENDING'S — Everyday essentials, made for Dhaka",
     metaDescription: "Breathable shirts, dresses and outerwear with cash on delivery across Bangladesh. Dispatched in 24–72 hours.",
   },
+  marketing: { recoveryAutoEnabled: true, recoveryCoupon: "WELCOME10" },
   maintenance: { enabled: false, message: "We'll be back soon." },
 };
 

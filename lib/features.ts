@@ -50,6 +50,8 @@ export const FEATURES = {
   /** Reviews — owner request: *"just reviews ta back ano"*. `true` = visible (ager moto).
       Abar hide korte hole sudhu ei line ta `false` korlei hobe — sidebar + middleware auto follow kore. */
   adminReviews: true,
+  /** Abandoned Cart Recovery (/admin/marketing + /api/admin/abandoned*) — enabled per owner request */
+  adminAbandonedCart: true,
   /** Admin → WhatsApp group: compose · campaigns · queue · devices · templates · inbox */
   adminWhatsapp: false,
   /** Growth tools → Campaign links (UTM builder) */
@@ -84,7 +86,6 @@ export const HIDDEN_ADMIN_PAGES: Record<FeatureKey, string[]> = {
   adminEngagement: [
     "/admin/sms",
     "/admin/loyalty",
-    "/admin/marketing",
     "/admin/campaigns",   // Newsletter & Push
     "/admin/blog",
   ],
@@ -93,6 +94,7 @@ export const HIDDEN_ADMIN_PAGES: Record<FeatureKey, string[]> = {
     "/admin/inbox",
   ],
   adminReviews: ["/admin/reviews"],
+  adminAbandonedCart: ["/admin/marketing"],
   adminCampaignLinks: ["/admin/links"],
   adminTwoFactor: [],     // Security page thake (Sessions + login history), sudhu 2FA card + login step off
   googleLogin: [],        // admin page nei — customer login page + settings card
@@ -116,6 +118,7 @@ export const HIDDEN_ADMIN_APIS: Record<FeatureKey, string[]> = {
     "/api/wa",            // bridge webhooks (inbound / receipt / tick / device)
   ],
   adminReviews: ["/api/admin/reviews", "/api/admin/review-requests"],
+  adminAbandonedCart: ["/api/admin/abandoned", "/api/admin/abandoned-recover"],
   adminCampaignLinks: ["/api/admin/links"],
   adminTwoFactor: [],     // /api/admin/login/2fa + /api/admin/security nijei guard kore
   googleLogin: ["/api/auth/google"], // callback sub-path o dhora porbe

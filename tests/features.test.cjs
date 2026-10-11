@@ -88,13 +88,13 @@ test('every hidden API base is a real route on disk', () => {
 });
 
 test('switches are plain booleans and names are stable', () => {
-  assert.deepEqual(KEYS, ['adminEngagement', 'adminReviews', 'adminWhatsapp', 'adminCampaignLinks', 'adminTwoFactor', 'googleLogin', 'freeDelivery', 'soldCount', 'colorGroups', 'cardImageSwipe']);
+  assert.deepEqual(KEYS, ['adminEngagement', 'adminReviews', 'adminAbandonedCart', 'adminWhatsapp', 'adminCampaignLinks', 'adminTwoFactor', 'googleLogin', 'freeDelivery', 'soldCount', 'colorGroups', 'cardImageSwipe']);
   for (const k of KEYS) assert.equal(typeof FEATURES[k], 'boolean', k);
 });
 
 test('the engagement group is now 5 tools — Reviews alada (back kora hoyeche)', () => {
   assert.deepEqual(HIDDEN_ADMIN_PAGES.adminEngagement,
-    ['/admin/sms', '/admin/loyalty', '/admin/marketing', '/admin/campaigns', '/admin/blog']);
+    ['/admin/sms', '/admin/loyalty', '/admin/campaigns', '/admin/blog']);
   assert.deepEqual(HIDDEN_ADMIN_APIS.adminEngagement,
     ['/api/admin/sms', '/api/admin/loyalty', '/api/admin/campaigns', '/api/admin/push', '/api/admin/blog']);
   assert.deepEqual(HIDDEN_ADMIN_PAGES.adminWhatsapp, ['/admin/whatsapp', '/admin/inbox']);
