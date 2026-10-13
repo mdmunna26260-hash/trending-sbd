@@ -184,8 +184,8 @@ async function HomeContent() {
               <Link className="classic-hero-btn classic-hero-btn-primary" href="/products" prefetch>
                 {hp.heroCta || "Explore Collection"}
               </Link>
-              <Link className="classic-hero-btn classic-hero-btn-ghost" href="/track" prefetch>
-                Track Order
+              <Link className="classic-hero-btn classic-hero-btn-ghost" href="/combo" prefetch>
+                View Combo
               </Link>
             </div>
           </div>
