@@ -72,7 +72,7 @@ export const FEATURES = {
   /** Color Group / linked color products + variant linked color image */
   colorGroups: false,
   /** Product card horizontal drag-to-swipe gallery + segmented progress bar under card photo */
-  cardImageSwipe: false,
+  cardImageSwipe: true,
 } as const;
 
 export type FeatureKey = keyof typeof FEATURES;
