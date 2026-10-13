@@ -144,51 +144,59 @@ async function HomeContent() {
 
   const sections: Record<string, React.ReactNode> = {
     hero: (
-      <section className="ed-hero" key="hero">
-        <div className="ed-hero-grid container">
-          <div className="ed-hero-copy">
-            <div className="ed-kicker">
-              <span className="ed-kicker-mark" aria-hidden="true" />
-              {cfg.store?.tagline || "Season 01 — Dhaka"}
+      <section className="classic-hero" key="hero">
+        {hp.heroImage ? (
+          <>
+            <link
+              rel="preload"
+              as="image"
+              fetchPriority="high"
+              href={imgSrc(vb(hp.heroImage), 1000)}
+              imageSrcSet={[600, 1000].map((n) => `${imgSrc(vb(hp.heroImage), n)} ${n}w`).join(", ")}
+              imageSizes="100vw"
+            />
+            <div className="classic-hero-media" aria-hidden="true">
+              <SmartImg
+                className="classic-hero-img"
+                priority
+                src={vb(hp.heroImage)}
+                alt={cfg.store?.name || "Hero"}
+                sizes="100vw"
+                widths={[600, 1000]}
+              />
+              <div className="classic-hero-scrim" />
             </div>
-            <h1>{hp.heroTitle}</h1>
-            <p>{hp.heroSubtitle}</p>
-            <div className="ed-hero-cta">
-              {/* the two highest-intent clicks on the site, above the fold: warm them right away */}
-              <Link className="btn" href="/products" prefetch>{hp.heroCta || "Shop the drop"}</Link>
-              <Link className="btn btn-outline" href="/track" prefetch>Track order</Link>
-            </div>
-            {/* print-colophon spec row — the COD/return promise, told like a data sheet */}
-            <dl className="ed-hero-specs">
-              <div><dt>Delivery</dt><dd>24–72h, nationwide</dd></div>
-              <div><dt>Payment</dt><dd>Cash on delivery</dd></div>
-              <div><dt>Returns</dt><dd>7 days, no questions</dd></div>
-            </dl>
+          </>
+        ) : (
+          <div className="classic-hero-media classic-hero-fallback" aria-hidden="true">
+            <div className="classic-hero-scrim" />
           </div>
-          <div className="ed-hero-art">
-            {hp.heroImage ? (
-              <>
-                {/* LCP element: hand the URL to the preload scanner instead of waiting for the client
-                    component to render. Next hoists this <link> out of the body into <head>.
-                    The plate is half-width on desktop, full-width under 900px. */}
-                <link
-                  rel="preload"
-                  as="image"
-                  fetchPriority="high"
-                  href={imgSrc(vb(hp.heroImage), 1000)}
-                  imageSrcSet={[600, 1000].map((n) => `${imgSrc(vb(hp.heroImage), n)} ${n}w`).join(", ")}
-                  imageSizes="(max-width: 899px) 92vw, 46vw"
-                />
-                <figure className="ed-frame">
-                  <SmartImg className="ed-frame-img" priority src={vb(hp.heroImage)} alt={cfg.store?.name || "Hero"} sizes="(max-width: 899px) 92vw, 46vw" widths={[600, 1000]} />
-                  <figcaption className="ed-frame-cap">
-                    <span>Fig. 01 — {cfg.store?.name || "Store"}</span>
-                    <span>Season 01 / Dhaka</span>
-                  </figcaption>
-                </figure>
-                <span className="ed-sticker" aria-hidden="true">New<br />Drop</span>
-              </>
-            ) : null}
+        )}
+        <div className="classic-hero-inner container">
+          <div className="classic-hero-copy">
+            <div className="classic-hero-eyebrow">
+              <span className="classic-hero-rule" aria-hidden="true" />
+              <span>{cfg.store?.tagline || "Autumn / Winter Edit · Dhaka"}</span>
+            </div>
+            <h1>{hp.heroTitle || "Quiet Luxury, Tailored for Everyday."}</h1>
+            <p>{hp.heroSubtitle || "Refined silhouettes and breathable fabrics crafted for effortless movement."}</p>
+            <div className="classic-hero-actions">
+              <Link className="classic-hero-btn classic-hero-btn-primary" href="/products" prefetch>
+                {hp.heroCta || "Explore Collection"}
+              </Link>
+              <Link className="classic-hero-btn classic-hero-btn-ghost" href="/track" prefetch>
+                Track Order
+              </Link>
+            </div>
+          </div>
+        </div>
+        <div className="classic-hero-foot">
+          <div className="classic-hero-foot-inner container">
+            <span>24–72h Nationwide Dispatch</span>
+            <span className="classic-hero-dot" aria-hidden="true">·</span>
+            <span>Cash on Delivery Across 64 Districts</span>
+            <span className="classic-hero-dot" aria-hidden="true">·</span>
+            <span>7-Day Effortless Exchange</span>
           </div>
         </div>
       </section>
