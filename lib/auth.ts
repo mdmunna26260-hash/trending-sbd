@@ -74,13 +74,100 @@ export function sessionCookie(token: string) {
 export async function logAudit(email: string, action: string, detail?: string, ip?: string) {
   try { await db.auditLog.create({ data: { userEmail: email, action, detail: detail ? detail.slice(0, 2000) : undefined, ip } }); } catch {}
 }
-// simple in-memory rate limiter
+/* ---- in-memory rate limiter -------------------------------------------------
+   Two properties matter and both were missing:
+
+   1) BOUNDED. Keys are built from request data (IP, phone, email), so an attacker can
+      mint unlimited distinct keys. Every one allocated a Map entry that was never
+      removed — stale timestamps were only filtered when the SAME key was hit again — so
+      a slow flood of unique keys grew the heap until the 896M container limit
+      OOM-killed the shop. Entries are now capped, expired keys are swept, and keys are
+      length-limited.
+
+   2) FAILURE-AWARE. The login/reset limiters used rateLimit() as a pre-check, which
+      consumed the bucket on EVERY attempt including successful ones. That both locked
+      legitimate admins out after 8 normal logins and let anyone lock any known email
+      out with 8 junk POSTs (an account-lockout DoS). Use rateLimitPeek() to test the
+      lock and rateLimitHit() only when the credential actually failed.
+
+   Single-process by design (one app container). If the app is ever scaled horizontally
+   these counters become per-instance and must move to Redis/Postgres. */
 const buckets: Map<string, number[]> = (global as any).__rl || ((global as any).__rl = new Map());
+const MAX_BUCKETS = 20_000;
+const MAX_KEY_LEN = 190;
+let lastSweep = 0;
+
+function safeKey(key: string): string {
+  const k = String(key || "");
+  return k.length > MAX_KEY_LEN ? k.slice(0, MAX_KEY_LEN) : k;
+}
+
+/* Drop buckets whose whole window has elapsed — what stops the map accumulating dead
+   keys forever. At most one sweep per 30s. */
+function sweep(now: number): void {
+  if (now - lastSweep < 30_000) return;
+  lastSweep = now;
+  for (const [k, arr] of buckets) {
+    // A bucket's own window is unknown here, so use the newest entry: if nothing in it
+    // is younger than an hour it cannot belong to any live limiter in this app.
+    if (!arr.length || now - arr[arr.length - 1] > 3_600_000) buckets.delete(k);
+  }
+}
+
+function pruneToFit(now: number): void {
+  if (buckets.size < MAX_BUCKETS) return;
+  sweep(now);
+  if (buckets.size < MAX_BUCKETS) return;
+  // Still over: evict the least recently active. Re-insertion on every hit keeps the
+  // Map's iteration order close to recency.
+  const excess = buckets.size - MAX_BUCKETS + 1;
+  let removed = 0;
+  for (const k of buckets.keys()) {
+    if (removed >= excess) break;
+    buckets.delete(k);
+    removed++;
+  }
+}
+
+function current(key: string, windowMs: number, now: number): number[] {
+  const k = safeKey(key);
+  const arr = (buckets.get(k) || []).filter((t) => now - t < windowMs);
+  buckets.delete(k);
+  buckets.set(k, arr);
+  return arr;
+}
+
+/* Check AND consume. Use for volume limits where every request is the thing being
+   limited (newsletter signups, uploads, tracking events, checkout posts). */
 export function rateLimit(key: string, max: number, windowMs: number): boolean {
   const now = Date.now();
-  const arr = (buckets.get(key) || []).filter((t) => now - t < windowMs);
-  if (arr.length >= max) { buckets.set(key, arr); return false; }
-  arr.push(now); buckets.set(key, arr); return true;
+  sweep(now);
+  const arr = current(key, windowMs, now);
+  if (arr.length >= max) return false;
+  arr.push(now);
+  pruneToFit(now);
+  return true;
+}
+
+/* Check WITHOUT consuming. Pair with rateLimitHit() for credential limiters so that
+   successful logins never count toward the lock. */
+export function rateLimitPeek(key: string, max: number, windowMs: number): boolean {
+  const now = Date.now();
+  sweep(now);
+  return current(key, windowMs, now).length < max;
+}
+
+/** Record one failure against a peeked key. */
+export function rateLimitHit(key: string, windowMs: number): void {
+  const now = Date.now();
+  current(key, windowMs, now).push(now);
+  pruneToFit(now);
+}
+
+/* Clear an account's failure lock after a successful authentication, so a user who
+   mistyped five times and then got it right starts from zero. */
+export function rateLimitReset(key: string): void {
+  buckets.delete(safeKey(key));
 }
 
 // ---- URL-token fallback (for browsers/previews that block cookies) ----

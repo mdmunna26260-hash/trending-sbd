@@ -84,8 +84,13 @@ export function deleteWaMedia(url: string): boolean {
   const prefix = `/${WA_UPLOAD_SUBDIR}/`;
   if (!u.startsWith(prefix)) return false;
   const name = path.basename(u.slice(prefix.length));
-  const full = path.join(waUploadDir(), name);
-  if (!full.startsWith(waUploadDir())) return false;
+  const dir = waUploadDir();
+  const full = path.join(dir, name);
+  /* basename() above already strips any directory component, so `name` cannot contain a
+     separator — but compare against "dir + sep" rather than a bare prefix anyway. A bare
+     startsWith(dir) would also accept a sibling like "…/uploads/wa-secrets", which is the
+     usual way this check quietly stops being a check. */
+  if (full !== dir && !full.startsWith(dir + path.sep)) return false;
   try { fs.rmSync(full, { force: true }); return true; } catch { return false; }
 }
 

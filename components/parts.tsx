@@ -1,7 +1,6 @@
 import type { CSSProperties } from "react";
 import Link from "next/link";
 import CardMedia from "./card-media";
-import CardLink from "./card-link";
 import QuickAdd from "./quick-add";
 import { sortSizes } from "@/lib/sizes";
 
@@ -34,7 +33,10 @@ export function ProductCard({ p, rd }: { p: CardProduct; rd?: number }) {
      <a> may not contain interactive content. */
   return (
     <div className="pcard-cell" style={rd != null ? ({ "--rd": rd } as CSSProperties) : undefined}>
-    <CardLink className="pcard reveal" href={"/products/" + p.slug}>
+    {/* Plain <Link>: the shared-element morph was removed (see components/card-media.tsx).
+        Navigation now shows the route-level skeleton in app/products/[slug]/loading.tsx,
+        which also drops a client component + useRouter from every product card. */}
+    <Link className="pcard reveal" href={"/products/" + p.slug}>
       {/* photo(s) + the segmented image progress bar under them — see components/card-media.tsx.
           The badges are passed as children so they stay inside the clipped image box. */}
       <CardMedia images={p.images} image={p.image} alt={p.title} slug={p.slug}>
@@ -69,7 +71,7 @@ export function ProductCard({ p, rd }: { p: CardProduct; rd?: number }) {
           {p.comparePrice && p.comparePrice > p.price && <s>৳{p.comparePrice.toLocaleString("en-IN")}</s>}
         </div>
       </div>
-    </CardLink>
+    </Link>
       <QuickAdd p={p} />
     </div>
   );

@@ -30,6 +30,11 @@ export default function SmartImg({ src, alt, className, fallback = "/uploads/see
     .filter(({ url }) => { if (!url || seen.has(url)) return false; seen.add(url); return true; });
   const srcSet = cand.length > 1 ? cand.map(({ n, url }) => `${url} ${n}w`).join(", ") : undefined;
   return (
+    <>
+      {/* Same skeleton the product cards and galleries use. Hero/banners are the largest
+          images on the page, so on a mobile connection this is the one the shopper actually
+          waits for — a shimmer reads as "loading" where a blank box reads as "broken". */}
+      {!loaded && <div className={"sk sk-fill" + (className ? " " + className : "")} aria-hidden="true" />}
     // eslint-disable-next-line @next/next/no-img-element
     <img
       ref={ref}
@@ -43,6 +48,8 @@ export default function SmartImg({ src, alt, className, fallback = "/uploads/see
       {...(priority ? { fetchPriority: "high" as const } : {})}
       onLoad={() => setLoaded(true)}
       onError={() => { if (cur !== fallback) setCur(fallback); else setDead(true); }}
+      style={{ position: "relative", zIndex: 1 }}
     />
+    </>
   );
 }

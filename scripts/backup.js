@@ -42,7 +42,9 @@ function stamp(d = new Date()) {
 
   if (isPg) {
     const { spawnSync } = require("child_process");
-    const r = spawnSync("pg_dump", ["--format=custom", "--file", target, url], { stdio: "inherit" });
+    /* Connection through PG* env, not argv — a URL on the command line exposes the
+       production password in `ps` output to every local user for the life of the dump. */
+    const r = spawnSync("pg_dump", ["--format=custom", "--file", target], { stdio: "inherit", env: pgEnvFromUrl(url) });
     if (r.status !== 0) {
       console.error("backup: pg_dump failed —", r.error ? r.error.message : "exit " + r.status);
       process.exit(1);
@@ -80,3 +82,27 @@ function stamp(d = new Date()) {
   }
   console.log(`backup: ${files.length - removed} snapshot(s) kept${removed ? `, ${removed} pruned` : ""}`);
 })();
+
+/* libpq connection env parsed out of a postgres URL.
+
+   MIRROR of lib/pg-env.ts — this script runs standalone from cron as plain CommonJS and
+   cannot import the TypeScript module. tests/pg-env.test.cjs feeds both copies the same
+   URLs and asserts identical output, so the mirror cannot drift silently. If you change
+   one, change the other. */
+function pgEnvFromUrl(rawUrl, base = process.env) {
+  const env = { ...base };
+  delete env.PGPASSWORD;
+  try {
+    const u = new URL(rawUrl);
+    if (u.protocol !== "postgres:" && u.protocol !== "postgresql:") return env;
+    if (u.hostname) env.PGHOST = u.hostname;
+    if (u.port) env.PGPORT = u.port;
+    if (u.username) env.PGUSER = decodeURIComponent(u.username);
+    if (u.password) env.PGPASSWORD = decodeURIComponent(u.password);
+    const dbName = decodeURIComponent(u.pathname.replace(/^\//, ""));
+    if (dbName) env.PGDATABASE = dbName;
+    const sslmode = u.searchParams.get("sslmode");
+    if (sslmode) env.PGSSLMODE = sslmode;
+  } catch { /* let pg_dump fail loudly rather than connect somewhere unexpected */ }
+  return env;
+}

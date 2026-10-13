@@ -30,5 +30,10 @@ exports.loader = function loader(mocks = {}, env = { NODE_ENV: 'test', SESSION_S
     factory(localRequire, module, module.exports, { env }, runtime, runtime);
     return module.exports;
   }
+  /* Additive: modules that cache state on `global`/`globalThis` (lib/auth.ts keeps its
+     rate-limit buckets there) see this object, not the real global. Exposing it lets a
+     test assert on that state without reaching into the host process. Existing callers
+     keep using `loader()(file)` unchanged. */
+  load.runtime = runtime;
   return load;
 };

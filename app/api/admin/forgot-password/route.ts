@@ -23,7 +23,19 @@ export async function POST(req: Request) {
       // Still respond success to avoid email enumeration
       return NextResponse.json({ ok: true });
     }
-    rateLimit("reset-em:" + lowerEmail, 3, 15 * 60 * 1000); // per-email cap
+    /* The result was discarded — this call was decorative: it recorded an attempt but
+       never blocked on one, so every request fell through to the transporter (and in dev
+       to the fake-transport log + the response body). Three resets per (address, host)
+       per 15 minutes is now actually enforced, which also caps how often this endpoint
+       can be used to confirm that an address belongs to an admin — the { ok: true }
+       response is deliberately identical either way, but an unbounded loop still burns
+       real mail quota.
+       Keyed on (email, IP): one host cannot grind one mailbox, and the owner requesting
+       from their own machine is not locked out by anyone else's traffic. */
+    if (!rateLimit("reset-em:" + lowerEmail + ":" + ip, 3, 15 * 60 * 1000)) {
+      // Same shape as the success response — a 429 here would confirm the address exists.
+      return NextResponse.json({ ok: true });
+    }
 
     // Find active admin user (case-insensitive)
     let user = await db.user.findFirst({ where: { email: lowerEmail, active: true } });

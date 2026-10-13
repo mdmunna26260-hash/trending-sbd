@@ -23,27 +23,113 @@ export function currencyConfig(currency: string) {
   return CURRENCY_CONFIG[currency.toUpperCase()] ?? { symbol: '', locale: 'en-US', decimals: 2 };
 }
 
-/** Parses admin/user input ("1,299.50", "1299.50", 1299) into minor units. */
+/* Bengali (০-৯) and Devanagari (०-९) digits fold to ASCII before parsing. This shop is
+   Bangladeshi and its admin forms are typed on phones that frequently offer a Bengali
+   keypad, so "১২৯৯" is a price somebody will actually enter. */
+const NON_ASCII_DIGITS: Record<string, string> = {
+  '০': '0', '১': '1', '২': '2', '৩': '3', '৪': '4',
+  '৫': '5', '৬': '6', '৭': '7', '৮': '8', '৯': '9',
+  '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+  '५': '5', '६': '6', '७': '7', '८': '8', '९': '9',
+};
+
+function normalizeDigits(input: string): string {
+  return input.replace(/[\u09E6-\u09EF\u0966-\u096F]/g, (ch) => NON_ASCII_DIGITS[ch] ?? ch);
+}
+
+/**
+ * Parses admin/user input ("1,299.50", "১২৯৯", "৳1299", 1299) into minor units.
+ *
+ * STRICT ON PURPOSE. The previous implementation ran `input.replace(/[^\d.-]/g, '')` and
+ * returned 0 for anything that survived as empty, which made four silent failures:
+ *   · "১২৯৯" (Bengali digits) → every character stripped → 0 → a ৳0.00 free product
+ *   · "" / "abc" / "৳"         → 0, not an error, so a blank form field priced the item at zero
+ *   · "-500"                   → -50000; a negative price was accepted and would have
+ *                                subtracted from an order total
+ *   · "1.2.3" → 120 and "1-2-3" → 100; parseFloat stops at the first bad character, so the
+ *                                rest of the field was silently discarded
+ * A price of ৳0.00 is indistinguishable from a real free item once it is in the database,
+ * so the only safe behaviour is to reject input this function cannot parse with certainty.
+ *
+ * Accepts: optional currency symbol, thousands separators, one decimal point, a fraction
+ * that is rounded half-up to the currency's decimal count. Rejects: signs, more than one
+ * separator, any non-numeric residue, and magnitudes past Number.MAX_SAFE_INTEGER.
+ */
 export function toMinor(input: string | number, currency = CURRENCY_DEFAULT): number {
+  const config = currencyConfig(currency);
+  const scale = 10 ** config.decimals;
+
   if (typeof input === 'number') {
     if (!Number.isFinite(input)) throw new Error(`Invalid amount: ${input}`);
-    return Math.round(input * 100);
+    if (input < 0) throw new Error(`Amount must not be negative: ${input}`);
+    const minor = Math.round(input * scale);
+    if (!Number.isSafeInteger(minor)) throw new Error(`Amount out of range: ${input}`);
+    return minor;
   }
-  const cleaned = input.replace(/[^\d.-]/g, '');
-  if (cleaned === '' || cleaned === '-' || cleaned === '.') return 0;
-  const parsed = Number.parseFloat(cleaned);
-  if (!Number.isFinite(parsed)) throw new Error(`Invalid amount: ${input}`);
-  void currency;
-  return Math.round(parsed * 100);
+  if (typeof input !== 'string') throw new Error(`Invalid amount: ${String(input)}`);
+
+  /* Thousands separators and the currency's own symbol are decoration, not digits. Only the
+     comma is stripped (BDT groups 1,23,456 lakh-style with the same character), so a dash or
+     stray punctuation still fails the shape check below rather than being silently eaten.
+
+     The symbol is removed with startsWith/slice, NOT a RegExp built from config: the first
+     version of this used `new RegExp("^\\\\" + symbol, "u")`, which throws a SyntaxError for
+     ৳, € and £ — under the /u flag an escaped character that is not punctuation is an
+     invalid escape — and which for "$" would match end-of-string instead of a dollar sign.
+     A config-driven regex is also a ReDoS/parse-failure surface that only appears at
+     runtime, once somebody adds a currency with an awkward symbol. */
+  let cleaned = normalizeDigits(input).trim().replace(/,/g, '');
+  if (config.symbol && cleaned.startsWith(config.symbol)) {
+    cleaned = cleaned.slice(config.symbol.length).trim();
+  }
+
+  /* A leading sign gets its own message: "must not be negative" tells an admin what to fix,
+     where a bare "Invalid amount" does not. '+' is left to the shape check below. */
+  if (cleaned.startsWith('-')) {
+    throw new Error(`Amount must not be negative: ${JSON.stringify(input)}`);
+  }
+
+  const m = /^(\d*)(?:\.(\d*))?$/.exec(cleaned);
+  if (!m || (!m[1] && !m[2])) {
+    throw new Error(`Invalid amount: ${JSON.stringify(input)}`);
+  }
+
+  /* Exact integer arithmetic on the decimal STRING — deliberately not
+     `Math.round(parseFloat(cleaned) * scale)`. That float path is the very thing this
+     module's header promises never to do ("no accidental 1.005 * 100 truncation"), and it
+     does fail: 1.005 is stored as 1.00499999999999989, so * 100 gives 100.49999999999999
+     and Math.round returns 100 — a silent one-poisha loss on every such price. Splitting at
+     the decimal point keeps every step in integers, so the result is exact and rounds
+     half-up on the first digit beyond the currency's precision. */
+  const intPart = m[1] || '0';
+  const frac = (m[2] || '').padEnd(config.decimals, '0');
+  const kept = frac.slice(0, config.decimals);
+  const firstDropped = config.decimals < frac.length ? Number(frac[config.decimals]) : 0;
+  const minor = Number(intPart) * scale + Number(kept || '0') + (firstDropped >= 5 ? 1 : 0);
+
+  /* Reached when the field is well-formed but simply too large — a 400-digit price parses
+     to Infinity here. Reporting "out of range" rather than "invalid" distinguishes a typo
+     of magnitude from a typo of shape. */
+  if (!Number.isSafeInteger(minor)) {
+    throw new Error(`Amount out of range: ${JSON.stringify(input)}`);
+  }
+  return minor;
 }
 
 /**
  * Lenient, null-safe unit conversion for DB rows and engine payloads
  * (null / undefined → 0). Kept here, in the money module, so the pure
  * promotion service can use it WITHOUT pulling in the Prisma repository.
+ *
+ * Also folds NaN/Infinity to 0. A Prisma Decimal or a corrupt column can arrive as
+ * something Number() cannot handle, and NaN propagates: one bad row would turn a whole
+ * cart's discount into NaN and render "৳NaN" at checkout. Zero is the safe neutral.
  */
 export function toMinorSafe(value: number | null | undefined): number {
-  return Math.round(Number(value ?? 0) * 100);
+  const n = Number(value ?? 0);
+  if (!Number.isFinite(n)) return 0;
+  const minor = Math.round(n * 100);
+  return Number.isSafeInteger(minor) ? minor : 0;
 }
 
 /** Minor units -> decimal number (display, exports, structured data). */

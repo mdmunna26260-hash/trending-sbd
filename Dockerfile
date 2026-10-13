@@ -24,7 +24,11 @@ ENV WEBPACK_CACHE=false NEXT_PRIVATE_WORKER_THREADS=1
 RUN npx prisma generate --schema prisma/schema.prod.prisma && npm run build
 
 FROM node:20-bookworm-slim AS runner
-RUN apt-get update -qq && apt-get install -y -qq openssl && rm -rf /var/lib/apt/lists/*
+# util-linux provides setpriv, which the entrypoint uses to drop from root to the app
+# user AFTER it has fixed ownership of the mounted uploads volume (see below).
+RUN apt-get update -qq && apt-get install -y -qq openssl util-linux && rm -rf /var/lib/apt/lists/* \
+ && groupadd --system --gid 1001 sinzo \
+ && useradd --system --uid 1001 --gid sinzo --home-dir /app --shell /usr/sbin/nologin sinzo
 WORKDIR /app
 ENV NODE_ENV=production
 COPY --from=builder /app/.next ./.next
@@ -38,8 +42,17 @@ COPY --from=builder /app/scripts/abandoned-worker.js ./scripts/abandoned-worker.
 COPY --from=builder /app/next.config.mjs ./next.config.mjs
 # entrypoint: runs prisma/migrate-from-neon.js first when MIGRATE_ON_BOOT is set in the panel, then the app
 COPY --from=builder /app/docker-entrypoint.sh /usr/local/bin/sinzo-entrypoint.sh
-RUN chmod +x /usr/local/bin/sinzo-entrypoint.sh
+# The app only needs to write inside public/uploads (WhatsApp media) — everything else is
+# read-only at runtime. Owning the tree as the unprivileged user is what lets the container
+# stop running as root without breaking uploads.
+RUN chmod +x /usr/local/bin/sinzo-entrypoint.sh \
+ && mkdir -p /app/public/uploads/wa \
+ && chown -R sinzo:sinzo /app
 EXPOSE 3000
+# Deliberately NOT `USER sinzo`: the entrypoint has to start as root so it can chown a
+# pre-existing, root-owned `uploads:` volume from an earlier deployment, and it drops to
+# sinzo itself with setpriv before exec'ing the app. A brand-new deployment never needs
+# that step, and an upgrade heals on the first boot instead of failing every upload.
 ENTRYPOINT ["/usr/local/bin/sinzo-entrypoint.sh"]
 # ensure DB columns on container start (runs before next start)
 CMD ["npm", "run", "start"]

@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import { sanitizeHtml } from "@/lib/sanitize";
 import { notFound } from "next/navigation";
 import { clean } from "@/lib/search";
 import { db } from "@/lib/db";
@@ -18,6 +19,19 @@ import Link from "next/link";
 
 export const dynamic = "force-dynamic";
 // runtime caching via CDN keeps fast; skip build-time prerender (small VPS RAM)
+
+/* The size-chart table needs .sizechart-table for its borders and padding (globals.css
+   line ~397). sanitizeHtml keeps any class the admin happened to write, so rewriting the
+   root <table> opening tag — rather than prefixing a second class attribute — keeps the
+   output well-formed. Runs on already-sanitised markup, so there is nothing left to
+   escape; the client component renders the result verbatim and does no string surgery. */
+function sizeChartHtml(raw: string | null | undefined): string | null {
+  if (!raw) return null;
+  return sanitizeHtml(raw).replace(/<table(\s[^>]*)?>/i, (_m, attrs: string) => {
+    const kept = String(attrs || "").replace(/\sclass\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/gi, "");
+    return `<table class="sizechart-table"${kept}>`;
+  });
+}
 
 export async function generateMetadata(props: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const params = await props.params;
@@ -314,7 +328,14 @@ export default async function PDP(props: { params: Promise<{ slug: string }>; se
             colorName: p.colorName,
             colorImage: p.colorImage,
           }}
-          sizeChartHtml={p.category?.sizeChart || null}
+          /* Sanitised HERE, on the server, at the trust boundary — not in the client
+             component. Category.sizeChart is admin-authored HTML that is injected with
+             dangerouslySetInnerHTML, so whatever leaves this prop is what a shopper's
+             browser executes. lib/sanitize rebuilds the markup from an allow-list of
+             tags and attributes instead of pattern-matching attack strings: a blocklist
+             regex has to be right about every payload ever invented, an allow-list only
+             has to be right about the six tags a size chart uses. */
+          sizeChartHtml={sizeChartHtml(p.category?.sizeChart)}
           colorFamily={colorFamily}
         />
         {/* Reviews — the first block past the fold on a PDP, and the one surface that had no

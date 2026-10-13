@@ -37,4 +37,36 @@ fi
 # Make sure newly added columns exist against the runtime database before serving requests.
 [ -f scripts/ensure-db.js ] && node scripts/ensure-db.js
 
+# ---------------------------------------------------------------------------
+# Drop privileges.
+#
+# The image used to run Next.js as root. Any file-read or RCE bug in the app or
+# in a dependency then owned the whole container, the mounted uploads volume and
+# whatever secrets the runtime environment carried.
+#
+# This runs LAST, and as root, for one reason: the `uploads:` named volume from an
+# existing deployment is root-owned. If the container simply switched to an
+# unprivileged USER, WhatsApp media writes would start failing the moment the new
+# image shipped — a broken shop is worse than a root shop. So the entrypoint fixes
+# ownership first and only then hands the process to uid 1001.
+#
+# If setpriv or the sinzo user is missing (someone rebuilt the image differently),
+# this degrades to the old behaviour rather than failing to boot.
+# ---------------------------------------------------------------------------
+APP_UID="${APP_UID:-1001}"
+APP_USER="${APP_USER:-sinzo}"
+if [ "$(id -u)" = "0" ] && command -v setpriv >/dev/null 2>&1 && id "$APP_USER" >/dev/null 2>&1; then
+  # Only the directory the app actually writes to; chowning all of /app every boot
+  # would be slow and would fight the image's own ownership.
+  mkdir -p /app/public/uploads/wa
+  chown -R "$APP_UID:$APP_UID" /app/public/uploads 2>/dev/null || echo "[boot] could not chown uploads — uploads may fail"
+  # npm/next want a writable cache + tmp even as an unprivileged user.
+  chown "$APP_UID:$APP_UID" /tmp 2>/dev/null || true
+  echo "[boot] dropping privileges to $APP_USER (uid $APP_UID)"
+  exec setpriv --reuid="$APP_UID" --regid="$APP_UID" --init-groups -- "$@"
+fi
+if [ "$(id -u)" = "0" ]; then
+  echo "[boot] WARNING: running as root — setpriv or user '$APP_USER' unavailable in this image"
+fi
+
 exec "$@"

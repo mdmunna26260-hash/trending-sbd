@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { logApp } from "@/lib/logs";
+import { safeExternalTarget } from "@/lib/url-guard";
 
 export const dynamic = "force-dynamic";
 
@@ -29,6 +30,16 @@ export async function GET(req: Request, props: { params: Promise<{ slug: string 
     await logApp("INFO", "WHATSAPP", `campaign link ${slug} clicked (${link.clicks + 1})`, { broadcastId: link.broadcastId }).catch(() => {});
   }
 
-  const target = /^https?:\/\//.test(link.target) ? link.target : new URL(link.target || "/", req.url).toString();
+  /* Redirect target. WaLink.target is written through Admin → Links, so it is not fully
+     anonymous input — but "any http(s) URL goes straight into a 302" makes /l/<slug> an
+     open redirect on the shop's own domain the moment one link row is wrong, and a
+     campaign click is exactly the traffic a phisher wants to launder through a trusted
+     host. Relative targets stay relative; absolute ones must be http(s) and either the
+     shop's own origin or on the operator's allow-list. Anything else falls back to the
+     storefront, which is the same behaviour an unknown slug already had. */
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "/";
+  const baseOrigin = base.startsWith("http") ? new URL(base).origin : new URL(base, req.url).origin;
+  const target = safeExternalTarget(link.target, { requestUrl: req.url, siteOrigin: baseOrigin });
+  if (!target) return NextResponse.redirect(baseOrigin + "/", 302);
   return NextResponse.redirect(target, 302);
 }

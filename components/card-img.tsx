@@ -60,20 +60,27 @@ export default function CardImg({ url, alt, slug }: { url: string; alt: string; 
   }, [url]);
 
   return (
-    <img
-      ref={ref}
-      src={err ? FALLBACK : imgSrc(url, 400)}
-      srcSet={err ? undefined : imgSrcSet(url, CARD_WIDTHS)}
-      sizes={CARD_SIZES}
-      alt={alt}
-      loading="lazy"
-      decoding="async"
-      className={"fade-img" + (loaded ? " loaded" : "")}
-      onLoad={() => setLoaded(true)}
-      onError={() => { setErr(true); setLoaded(true); }}
-      onPointerEnter={onIntent}
-      onTouchStart={onIntent}
-      style={{ width: "100%", height: "100%", objectFit: "cover" }}
-    />
+    <>
+      {/* Skeleton shimmer while the bitmap decodes. The box already has a fixed
+          aspect-ratio + background (.pcard-img), so this paints inside it and adds no CLS;
+          it unmounts on load instead of relying on :has(), which would leave the shimmer
+          stuck forever on a browser that lacks the selector. */}
+      {!loaded && !err && <div className="sk sk-fill" aria-hidden="true" />}
+      <img
+        ref={ref}
+        src={err ? FALLBACK : imgSrc(url, 400)}
+        srcSet={err ? undefined : imgSrcSet(url, CARD_WIDTHS)}
+        sizes={CARD_SIZES}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        className={"fade-img" + (loaded ? " loaded" : "")}
+        onLoad={() => setLoaded(true)}
+        onError={() => { setErr(true); setLoaded(true); }}
+        onPointerEnter={onIntent}
+        onTouchStart={onIntent}
+        style={{ width: "100%", height: "100%", objectFit: "cover", position: "relative", zIndex: 1 }}
+      />
+    </>
   );
 }

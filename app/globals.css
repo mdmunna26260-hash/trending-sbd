@@ -1156,40 +1156,12 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 /* NOTE: .pcard-info intentionally NOT animated here — cards already use the
    .reveal IntersectionObserver animation; a second animation = double fade + wasted paint on mobile */
 
-/* View Transition API — shared-element morph: product card photo ⇄ product page hero.
-   The name `product-hero` is NOT set here: components/view-transition.ts puts it on exactly one
-   element per page for the length of one transition (tapped card photo / visible PDP hero).
-   A permanent name on the PDP hero broke every transition started from a card on the same page
-   (two elements with one name → the browser skips the transition).
-
-   Page behind the morph: the browser's own cross-fade (both layers blend with plus-lighter, so
-   anything identical on both pages — header, tab bar — stays perfectly still). The previous
-   staggered fade-out/fade-in dipped the header's opacity mid-way. */
-::view-transition-old(root),
-::view-transition-new(root) {
-  animation-duration: 260ms;
-  animation-timing-function: ease;
-}
-
-/* The photo box flies from the card's rect to the hero's rect; the two snapshots cross-fade
-   inside it and are cropped to the box (card and hero can have different aspect ratios). */
-::view-transition-group(product-hero) {
-  animation-duration: 420ms;
-  animation-timing-function: cubic-bezier(0.32, 0.72, 0, 1);
-}
-::view-transition-old(product-hero),
-::view-transition-new(product-hero) {
-  height: 100%;
-  object-fit: cover;
-  overflow: clip;
-  animation-duration: 420ms;
-}
-@media (prefers-reduced-motion: reduce) {
-  ::view-transition-group(*),
-  ::view-transition-old(*),
-  ::view-transition-new(*) { animation: none !important; }
-}
-
+/* The shared-element morph (View Transitions API) was removed: its four
+   ::view-transition rules, the JS that named the elements and the popstate gate in
+   components/view-transition-root.tsx are all gone. Loading states are now handled by the
+   skeleton system below (.sk shimmer + the route-level loading.tsx files). This rule stays —
+   it is plain layout containment, not part of the morph, and it is what keeps a decoded
+   image from nudging its neighbours. */
 /* Ensure no layout shift during transitions */
 .pdp-main-img, .pcard-img {
   contain: layout style;
@@ -1203,6 +1175,12 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 @keyframes skShimmer { to { transform: translateX(100%); } }
 @media (prefers-reduced-motion: reduce) { .sk::after { animation: none; } }
 .sk-img { aspect-ratio: var(--img-ratio, 3 / 4); }
+/* Fills a positioned parent (.pcard-img / .pdp-main-img / .mgal-viewport) so a photo box
+   shimmers while its bitmap decodes, then unmounts the moment the <img> reports loaded.
+   The parent already carries the fixed aspect-ratio + background, so this adds no CLS. */
+.sk-fill { position: absolute; inset: 0; border-radius: inherit; z-index: 0; }
+/* The photo must paint above the shimmer, and the shimmer must not eat card taps. */
+.sk-fill { pointer-events: none; }
 .sk-line { height: 12px; margin: 8px 0; }
 .sk-line.sm { height: 9px; width: 42%; }
 .sk-btn { height: 46px; margin-top: 14px; }
@@ -5431,4 +5409,133 @@ body { line-height: 1.6; }
   .combo-pool-grid {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
+}
+
+/* ================================================================
+   MOBILE PASS — combo offers, promotions, free-gift picker
+   ----------------------------------------------------------------
+   The rest of this stylesheet already carries a full small-screen
+   treatment: `html, body { overflow-x: clip }` (§1578), viewport
+   `width=device-width` + `viewportFit: cover`, `env(safe-area-inset-*)`
+   padding, 97 max-width queries, a full admin reflow, and a proper
+   bottom-sheet gift modal. The promo/combo/gift feature was layered on
+   afterwards and shipped desktop-first, so this block closes the gaps
+   that are actually visible on a phone. Ordered worst-first.
+   Nothing here changes a desktop layout: every rule is either scoped to
+   a max-width query or a no-op when there is room to spare.
+   ================================================================ */
+
+/* ---- 1. iOS Safari auto-zoom on focus ----------------------------
+   Safari scales the whole page up when it focuses a form control whose
+   computed font-size is under 16px, and never scales it back — the
+   shopper is left staring at a magnified corner of the gift-search field
+   with the rest of the sheet pushed off screen and no obvious way back.
+   The codebase already patched this per-form (.review-form §2448,
+   .checkout-page .field §2477, .login-card §2550) but the new controls
+   were missed: .gift-modal-search input is 13.5px, .promo-search 13px,
+   .promo-slot-row inputs 13px, .sort-select 12px, .cart-size-select 13px.
+   One rule covers all of them, and any form added later, so this cannot
+   silently come back. Touch devices only — a 16px floor would resize the
+   deliberately small display controls on a desktop for no benefit. */
+@media (max-width: 640px) and (hover: none) {
+  /* Written as one unbroken compound selector on purpose: a line break between `)` and
+     the next `:not()` is whitespace, and whitespace is the descendant combinator, so the
+     split version silently matched "any descendant of an input" — nothing. */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):not([type="submit"]):not([type="button"]):not([type="file"]),
+  select,
+  textarea { font-size: 16px; }
+}
+
+/* ---- 2. Tap targets ---------------------------------------------
+   .combo-link renders as bare 10.5px text with `padding: 0`, so the
+   "Change" and "Remove" buttons in a claimed-gift row are about 14px
+   tall and 14px apart — far under the 44px minimum, and the mis-tap
+   lands on the destructive one. Grow the hit box with vertical padding
+   cancelled by an equal negative margin (row height unchanged) plus
+   horizontal padding that is NOT cancelled, which also separates the two
+   labels further than they were. .gift-modal-close is 34x34 and
+   .promo-remove 28x28 for the same reason. */
+@media (hover: none) {
+  .combo-link {
+    display: inline-flex; align-items: center;
+    min-height: 44px; padding: 12px 7px; margin: -12px 0;
+  }
+  .gift-modal-close { width: 44px; height: 44px; }
+  .promo-remove { width: 44px; height: 44px; }
+}
+
+/* ---- 3. Flex rows that could never wrap --------------------------
+   Each is a space-between header or an action row. On a 360px viewport
+   the two sides collide: the right-hand control is squeezed to nothing
+   or pushed outside the card. `flex-wrap` is a no-op while there is room,
+   so this is safe to leave unscoped. */
+.combo-slot-actions,
+.gift-held-actions,
+.combo-live-head,
+.combo-tier-top,
+.combo-pool-head { flex-wrap: wrap; }
+
+/* ---- 4. Grid children must be allowed to shrink -------------------
+   .combo-pool-grid drops to 2-up at ≤600px, so each column is about
+   140px on a 360px phone. A grid item's default `min-width: auto` refuses
+   to shrink below its content, so one long product title — or an
+   unbreakable SKU — widens the column past its track and the whole grid
+   overflows the viewport, where `overflow-x: clip` on body then quietly
+   crops the second product instead of letting it scroll into view. */
+.combo-pool-item,
+.combo-tier-card,
+.combo-pool-item-title,
+.combo-pool-item-price,
+.combo-pool-head,
+.combo-pool-count { min-width: 0; }
+.combo-pool-item-title,
+.combo-pool-item-price,
+.combo-cand-name,
+.gift-card-name { overflow-wrap: break-word; }
+
+/* ---- 5. Phone-width rhythm and padding ---------------------------
+   The desktop values (64px between sections, 54px under the live box,
+   26x24 card padding) leave very little of a 360px viewport for actual
+   content. Tightened, not removed — the same visual hierarchy. */
+@media (max-width: 600px) {
+  .combo-page { padding-bottom: 56px; }
+  .combo-body { padding-top: 24px; }
+  .combo-section { margin-bottom: 40px; }
+  .combo-live-box { margin-bottom: 34px; }
+  .combo-tier-card { padding: 18px 16px; gap: 8px; }
+  /* space-between headers read better top-aligned once they have wrapped */
+  .combo-live-head,
+  .combo-tier-top,
+  .combo-pool-head { align-items: flex-start; }
+  .combo-pool-grid { gap: 10px; }
+  .combo-pool-block { padding: 16px; }
+  .combo-hero-actions .btn { flex: 1 1 auto; }
+}
+
+/* ---- 6. Very narrow phones (320-380px) ---------------------------
+   2-up is still the right call at 360px (~150px columns); it only needs
+   smaller type and a tighter gap. The rest of this stylesheet already
+   treats 380px/360px as real breakpoints (§3 places), the combo page
+   did not. */
+@media (max-width: 380px) {
+  .combo-pool-grid { gap: 8px; }
+  .combo-pool-item-title { font-size: 12px; }
+  .combo-pool-item-price { font-size: 11px; }
+  .combo-pool-thumb { border-width: 1px; }
+  .combo-eyebrow { letter-spacing: 0.16em; gap: 8px; }
+  .combo-tier-card { padding: 16px 14px; }
+}
+
+/* ---- 7. Admin promotions panel -----------------------------------
+   .promo-slot-row hard-codes a 110px and a 190px input side by side:
+   300px of fixed width plus an 8px gap, which does not fit the panel on a
+   phone once its own padding is counted, and the overflow is cropped
+   rather than scrollable — the end of the second field, where the gift
+   pool id is typed, is simply unreachable. Let them stack full width. */
+@media (max-width: 768px) {
+  .promo-slot-row input:nth-child(1),
+  .promo-slot-row input:nth-child(2) { width: 100%; flex: 1 1 100%; }
+  .promo-slot-row { padding-left: 10px; }
+  .promo-search { max-width: none; }
+  .promo-sub { margin-left: 0; padding-left: 10px; }
 }

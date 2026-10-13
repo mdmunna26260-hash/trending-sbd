@@ -177,6 +177,29 @@ export async function catalog() {
 
 /* -------------------------------------------------------------- validation */
 
+/* ---- size caps -----------------------------------------------------------
+   Every column these land in is an unbounded Postgres `text`, so nothing else in the
+   stack would stop a megabyte-long name or a 50,000-entry product list from being saved.
+   That is not a hypothetical: this record is read by loadActivePromotion() on EVERY cart,
+   checkout and product-page render (app/cart, app/checkout and app/products/[slug] layouts → lib/promotions/config-server.ts),
+   serialised with JSON.parse(JSON.stringify(...)) and shipped to the browser as a prop.
+   An oversized promotion therefore slows down the three highest-traffic pages in the shop
+   and inflates every HTML document, from one admin save.
+   The limits are far above any real offer (a ladder has a handful of tiers, a gift pool a
+   few dozen products) so they only ever fire on a mistake or a scripted write. */
+const MAX_NAME = 120;
+const MAX_LABEL = 120;
+const MAX_KEY = 60;
+const MAX_DESCRIPTION = 2000;
+const MAX_POOLS = 40;
+const MAX_TIERS = 20;
+const MAX_SLOTS = 20;
+const MAX_POOL_PRODUCTS = 2000;
+const MAX_ID_LIST = 2000;
+
+const tooLong = (v: unknown, max: number) => typeof v === "string" && v.trim().length > max;
+const tooMany = (v: unknown, max: number) => Array.isArray(v) && v.length > max;
+
 export function validateDraft(d: PromotionDraft): { errors: string[]; warnings: string[] } {
   const errors: string[] = [];
   const warnings: string[] = [];
@@ -184,6 +207,32 @@ export function validateDraft(d: PromotionDraft): { errors: string[]; warnings: 
   if (!d.name?.trim()) errors.push("Name is required");
   if (!/^[a-z0-9][a-z0-9-]{1,60}$/.test(d.slug || "")) errors.push("Slug must be lowercase letters, numbers and dashes (2–60 chars)");
   if (!d.tiers?.length) errors.push("At least one tier is required");
+
+  /* ---- size caps (see the comment above the constants) ---- */
+  if (tooLong(d.name, MAX_NAME)) errors.push(`Name must be ${MAX_NAME} characters or fewer`);
+  if (tooLong(d.description, MAX_DESCRIPTION)) errors.push(`Description must be ${MAX_DESCRIPTION} characters or fewer`);
+  if (tooMany(d.pools, MAX_POOLS)) errors.push(`At most ${MAX_POOLS} gift pools`);
+  if (tooMany(d.tiers, MAX_TIERS)) errors.push(`At most ${MAX_TIERS} tiers`);
+  if (tooMany(d.eligibleProductIds, MAX_ID_LIST)) errors.push(`At most ${MAX_ID_LIST} eligible products`);
+  if (tooMany(d.eligibleCategoryIds, MAX_ID_LIST)) errors.push(`At most ${MAX_ID_LIST} eligible categories`);
+  for (const pool of d.pools || []) {
+    if (tooLong(pool.key, MAX_KEY)) errors.push(`Pool key must be ${MAX_KEY} characters or fewer`);
+    if (tooLong(pool.label, MAX_LABEL)) errors.push(`Pool label must be ${MAX_LABEL} characters or fewer`);
+    if (tooLong(pool.description, MAX_DESCRIPTION)) errors.push(`Pool description must be ${MAX_DESCRIPTION} characters or fewer`);
+    if (tooMany(pool.products, MAX_POOL_PRODUCTS)) errors.push(`Pool "${pool.label || pool.key}": at most ${MAX_POOL_PRODUCTS} hand-picked products`);
+    if (tooMany(pool.categoryIds, MAX_ID_LIST)) errors.push(`Pool "${pool.label || pool.key}": at most ${MAX_ID_LIST} categories`);
+    if (tooMany(pool.excludeProductIds, MAX_ID_LIST)) errors.push(`Pool "${pool.label || pool.key}": at most ${MAX_ID_LIST} excluded products`);
+  }
+  for (const tier of d.tiers || []) {
+    if (tooLong(tier.key, MAX_KEY)) errors.push(`Tier ${tier.index}: key must be ${MAX_KEY} characters or fewer`);
+    if (tooLong(tier.label, MAX_LABEL)) errors.push(`Tier ${tier.index}: label must be ${MAX_LABEL} characters or fewer`);
+    if (tooLong(tier.description, MAX_DESCRIPTION)) errors.push(`Tier ${tier.index}: description must be ${MAX_DESCRIPTION} characters or fewer`);
+    if (tooMany(tier.slots, MAX_SLOTS)) errors.push(`Tier ${tier.index}: at most ${MAX_SLOTS} gift slots`);
+    for (const slot of tier.slots || []) {
+      if (tooLong(slot.key, MAX_KEY)) errors.push(`Tier ${tier.index}: slot key must be ${MAX_KEY} characters or fewer`);
+      if (tooLong(slot.label, MAX_LABEL)) errors.push(`Tier ${tier.index}: slot label must be ${MAX_LABEL} characters or fewer`);
+    }
+  }
 
   const poolKeys = new Set<string>();
   for (const pool of d.pools || []) {

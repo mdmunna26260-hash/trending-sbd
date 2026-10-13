@@ -19,7 +19,11 @@
  *   §22  Gift stock is validated; out-of-stock gifts must be replaced.
  */
 
-import { mulMinor } from '@/lib/money';
+/* percentOfMinor and sumMinor join the mulMinor import that was already here.
+   lib/money.ts is itself pure (no DB, no React, no fetch), so this does not weaken
+   this module's "nothing touches the database" contract — it removes second copies
+   of the currency arithmetic that could otherwise drift away from it. */
+import { mulMinor, percentOfMinor, sumMinor } from '@/lib/money';
 import type {
   EngineCartLine,
   EngineGiftPool,
@@ -319,11 +323,13 @@ export function evaluatePromotion(input: EvaluatePromotionInput): PromotionEvalu
       if (lockedApplied) warnings.push(GIFT_MESSAGES.lockedKept);
     }
   } else if (promotion.lockGrantedGifts && grantedTierIndex !== null && count < floor && count >= 0) {
-    // Cart dropped below every tier: even a locked gift is revoked (§20 —
-    // a locked gift must still be validated for promotion validity).
-    if (grantedTierIndex !== null && count < floor) {
-      warnings.push('Your cart no longer qualifies for the free gift offer.');
-    }
+    /* Cart dropped below every tier: even a locked gift is revoked (§20 — a locked gift must
+       still be validated for promotion validity).
+       The body used to be wrapped in a second `if (grantedTierIndex !== null && count < floor)`
+       re-testing two conditions this branch was only entered because they held, so the guard
+       could never be false — dead code that made the revocation look conditional when it is
+       not. Behaviour is unchanged; the warning now fires exactly where it always did. */
+    warnings.push('Your cart no longer qualifies for the free gift offer.');
   }
 
   if (grantedIndexes.length === 0) {
@@ -489,7 +495,11 @@ export function calculatePromotionDiscount(
     return isEligiblePurchaseLine(promotion, asCartLine);
   });
 
-  const subtotal = scopedLines.reduce((total, line) => total + line.unitPriceMinor * line.quantity, 0);
+  /* mulMinor/sumMinor rather than raw `*` and `+`: they assert the integers this module's
+     whole design rests on, so a non-integer unit price arriving from a corrupt row fails
+     loudly here instead of quietly producing a fractional discount that a later
+     assertMinor() rejects with no clue where it came from. */
+  const subtotal = sumMinor(scopedLines.map((line) => mulMinor(line.unitPriceMinor, line.quantity)));
 
   if (inactive) return { discountMinor: 0, label: promotion.name, reason: inactive };
   if (subtotal <= 0) return { discountMinor: 0, label: promotion.name, reason: 'NOTHING_ELIGIBLE' };
@@ -497,8 +507,11 @@ export function calculatePromotionDiscount(
   switch (promotion.type) {
     case 'PERCENTAGE': {
       const percent = promotion.config.percentOff ?? 0;
-      const raw = Math.round((subtotal * Math.round(percent * 100)) / 10_000);
-      return { discountMinor: Math.min(raw, subtotal), label: promotion.name, reason: null };
+      /* Was inlined as `Math.round((subtotal * Math.round(percent * 100)) / 10_000)` —
+         character-for-character the body of percentOfMinor(). lib/money.ts is documented as
+         the single authoritative implementation of currency arithmetic, so a second copy
+         here is one that can drift (it already lacked the integer assert). */
+      return { discountMinor: Math.min(percentOfMinor(subtotal, percent), subtotal), label: promotion.name, reason: null };
     }
     case 'FIXED': {
       const amount = promotion.config.amountOffMinor ?? 0;
@@ -511,12 +524,17 @@ export function calculatePromotionDiscount(
       const units = scopedLines.reduce((total, line) => total + line.quantity, 0);
       const groups = Math.floor(units / (buy + get));
       if (groups <= 0) return { discountMinor: 0, label: promotion.name, reason: 'THRESHOLD_NOT_MET' };
-      // Cheapest units are free, which is the customer-favourable reading.
+      /* Cheapest units are free. The comment here used to call that "the customer-favourable
+         reading", which is backwards and worth correcting because someone will otherwise
+         "fix" the code to match it: giving away the CHEAPEST units is the MERCHANT-favourable
+         choice, and it is also retail standard for buy-N-get-N offers. The customer-favourable
+         variant would sort descending and give away the most expensive units. The behaviour is
+         correct as written; only the comment was wrong. */
       const unitPrices = scopedLines
         .flatMap((line) => Array.from({ length: line.quantity }, () => line.unitPriceMinor))
         .sort((a, b) => a - b);
       const freeUnits = unitPrices.slice(0, groups * get);
-      const discount = freeUnits.reduce((total, price) => total + price, 0);
+      const discount = sumMinor(freeUnits);
       return { discountMinor: Math.min(discount, subtotal), label: promotion.name, reason: null };
     }
     default:

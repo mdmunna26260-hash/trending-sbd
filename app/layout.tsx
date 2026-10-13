@@ -3,7 +3,7 @@ import "./globals.css";
 import RevealInit from "@/components/reveal";
 import PageViewTracker from "@/components/pageview";
 import PageTransition from "@/components/page-transition";
-import ViewTransitionRoot from "@/components/view-transition-root";
+import { safeCssValue, safeCssFontStack, safeCssInteger, safeAspectRatio } from "@/lib/sanitize";
 import { CartProvider } from "@/components/store";
 import PushRegister from "@/components/push-register";
 import PushNudge from "@/components/push-nudge";
@@ -107,7 +107,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       <html lang="en" suppressHydrationWarning>
         <head>
           <script dangerouslySetInnerHTML={{ __html: `(function(){try{var m=localStorage.getItem("sz_theme")||"system";var d=m==="dark"||(m==="system"&&matchMedia("(prefers-color-scheme: dark)").matches);document.documentElement.setAttribute("data-theme",d?"dark":"light");}catch(e){document.documentElement.setAttribute("data-theme","light");}})();` }} />
-          <style dangerouslySetInnerHTML={{ __html: `:root{--bg:${theme.bg || "#faf9f7"};--text:${theme.text || "#141414"};}` }} />
+          {/* Validated, not interpolated raw: theme.bg / theme.text come from Admin →
+              Settings, so a compromised or phished MARKETING account could otherwise close
+              the <style> tag and plant persistent script on every page. See lib/sanitize. */}
+          <style dangerouslySetInnerHTML={{ __html: `:root{--bg:${safeCssValue(theme.bg, "#faf9f7")};--text:${safeCssValue(theme.text, "#141414")};}` }} />
         </head>
         <body>
           <div style={{ minHeight: "100vh", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", textAlign: "center", padding: 24, background: "var(--bg)", color: "var(--text)" }}>
@@ -120,16 +123,33 @@ export default async function RootLayout({ children }: { children: React.ReactNo
       </html>
     );
   }
+  /* Every one of these originates in Admin → Settings, so a value is not trusted just
+     because an admin typed it: a MARKETING/ADMIN account that is phished or compromised
+     could otherwise plant `red}</style><script>…` and get persistent script execution on
+     the storefront for all customers and all other admins. Each setting is re-validated
+     against the shape it is supposed to have (colour, font stack, integer, ratio) and
+     silently falls back to nothing when it does not match. See lib/sanitize.ts.
+     --font-head / --font-body are the sharpest case: a font stack is free-form text with
+     quotes and commas, so a charset allow-list alone would still let `url(//evil/x)`
+     through and beacon out on every page load. */
+  const bg = safeCssValue(theme.bg);
+  const text = safeCssValue(theme.text);
+  const accent = safeCssValue(theme.accent);
+  const headingFont = safeCssFontStack(theme.headingFont);
+  const bodyFont = safeCssFontStack(theme.bodyFont);
+  const radius = safeCssInteger(theme.radius);
+  const containerWidth = safeCssInteger(theme.containerWidth);
+  const imgRatio = safeAspectRatio(theme.productImageRatio);
   const cssVars = `
     :root {
-      ${theme.bg ? `--bg:${theme.bg};` : ""}
-      ${theme.text ? `--text:${theme.text};` : ""}
-      ${theme.accent ? `--accent:${theme.accent};` : ""}
-      ${theme.headingFont ? `--font-head:${theme.headingFont};` : ""}
-      ${theme.bodyFont ? `--font-body:${theme.bodyFont};` : ""}
-      ${theme.radius != null ? `--radius:${theme.radius}px;` : ""}
-      ${theme.productImageRatio ? `--img-ratio:${String(theme.productImageRatio).replace(":", " / ")};` : "--img-ratio:3 / 4;"}
-      ${theme.containerWidth ? `--container:${theme.containerWidth}px;` : ""}
+      ${bg ? `--bg:${bg};` : ""}
+      ${text ? `--text:${text};` : ""}
+      ${accent ? `--accent:${accent};` : ""}
+      ${headingFont ? `--font-head:${headingFont};` : ""}
+      ${bodyFont ? `--font-body:${bodyFont};` : ""}
+      ${radius ? `--radius:${radius}px;` : ""}
+      --img-ratio:${imgRatio};
+      ${containerWidth ? `--container:${containerWidth}px;` : ""}
     }`;
   const rawGtmId = String(cfg?.integrations?.gtmId || "").trim();
   const gtmId = /^GTM-[A-Z0-9]{4,16}$/i.test(rawGtmId) ? rawGtmId : "";
@@ -218,7 +238,6 @@ export default async function RootLayout({ children }: { children: React.ReactNo
         <RevealInit />
         <PageViewTracker />
         <PageTransition />
-        <ViewTransitionRoot />
         {process.env.NODE_ENV === "development" && (
           /* Dev-preview self-heal. This sandbox restarts and takes the dev server with it, and a
              tab that is merely sitting there never hits the chunk-error reload above — it just keeps

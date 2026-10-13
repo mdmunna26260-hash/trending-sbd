@@ -1,4 +1,5 @@
 import fs from "fs";
+import { pgEnvFromUrl } from "./pg-env";
 import path from "path";
 import { db } from "./db";
 import { logApp } from "./logs";
@@ -74,7 +75,16 @@ export async function createBackup(prefix = "backup"): Promise<{ ok: boolean; fi
       const { spawnSync } = await import("child_process");
       const name = freeName(prefix, "dump");
       const target = path.join(BACKUP_DIR, name);
-      const r = spawnSync("pg_dump", ["--format=custom", "--file", target, process.env.DATABASE_URL as string], { encoding: "utf8" });
+      /* Connection goes through PG* env, not argv: a URL on the command line puts the
+         production password in `ps` output for every local user for the life of the dump.
+         pg_dump then needs a database name, which it takes from PGDATABASE. */
+      const r = spawnSync("pg_dump", ["--format=custom", "--file", target], {
+        encoding: "utf8",
+        /* pgEnvFromUrl returns a plain record so it stays testable without @types/node;
+           the value IS a copy of process.env plus the PG* connection settings, which is
+           structurally what spawnSync wants. */
+        env: pgEnvFromUrl(String(process.env.DATABASE_URL || "")) as NodeJS.ProcessEnv,
+      });
       if (r.status !== 0) return { ok: false, error: r.error?.message || r.stderr || "pg_dump failed" };
       const st = fs.statSync(target);
       await logApp("INFO", "BACKUP", `backup created: ${name}`, { size: st.size, engine: "postgres" });

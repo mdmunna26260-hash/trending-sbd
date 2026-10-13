@@ -1,8 +1,33 @@
 import { requirePerm } from "@/lib/admin-guard";
 import { db } from "@/lib/db";
 export const dynamic = "force-dynamic";
+
+/* CSV writer.
+
+   Quoting alone is not enough. A cell that begins with `=`, `+`, `-`, `@`, TAB or CR is
+   interpreted as a FORMULA by Excel and LibreOffice, so a value a customer typed is
+   executed on the machine of whoever opens the export. Every column below except the
+   numeric ones is user-supplied — order name/address/phone, waitlist contact and note,
+   product title, payment note — which makes this a plain "customer attacks admin" path
+   (CWE-1236):
+
+       name:  =cmd|' /C calc'!A0            → command execution on open
+       name:  =HYPERLINK("http://evil","Click for invoice")  → credential phishing
+       note:  =1+1  /  @SUM(A1)             → silent data exfiltration helper
+
+   Prefixing a leading quote-mark (or a space) makes the cell inert text in both
+   spreadsheets while staying readable. Applied to every cell, so nothing has to be
+   remembered per column. */
+const FORMULA_LEAD = /^[=+\-@\t\r]/;
+function safeCell(value: unknown): string {
+  const raw = String(value ?? "");
+  const neutralised = FORMULA_LEAD.test(raw) ? "'" + raw : raw;
+  // Strip bare CR/LF as well: inside quotes they are legal CSV, but they break naive
+  // parsers and let one cell masquerade as several rows.
+  return `"${neutralised.replace(/"/g, '""').replace(/[\r\n]+/g, " ")}"`;
+}
 function csv(rows: any[][]): string {
-  return rows.map((r) => r.map((c) => `"${String(c ?? "").replace(/"/g, '""')}"`).join(",")).join("\n");
+  return rows.map((r) => r.map(safeCell).join(",")).join("\n");
 }
 export async function GET(req: Request) {
   const type = new URL(req.url).searchParams.get("type") || "orders";

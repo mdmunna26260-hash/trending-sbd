@@ -1,6 +1,6 @@
 "use client";
 import PdpWaitlist from "@/components/pdp-waitlist";
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useCart, trackEvent, toast } from "@/components/store";
@@ -10,7 +10,6 @@ import { warmImage, warmWhenIdle } from "@/components/img-warm";
 import { trackRecentlyViewed } from "@/components/recently-viewed";
 import MobileGallery from "@/components/mobile-gallery";
 import SegmentedProgress from "@/components/segmented-progress";
-import { notifyHeroMounted } from "@/components/view-transition";
 // LiveWatching import removed — live views OFF per user request
 import SoldCount from "@/components/sold-count";
 import { FEATURES } from "@/lib/features";
@@ -65,12 +64,17 @@ export default function ProductPageClient({ product, sizeChartHtml, sizeChartIma
   const router = useRouter();
   const N = product.images.length;
 
-  // card → product morph: tell the pending view transition the hero is on screen
-  // (components/view-transition.ts). Layout effect = before the browser's next frame.
-  useLayoutEffect(() => { notifyHeroMounted(); }, []);
-
   // ---------- gallery state ----------
   const [img, setImg] = useState(0);
+  /* Desktop hero decode state. The mobile gallery already had a per-slide skeleton; the
+     desktop main image had nothing — it sat on a flat #eee9e2 box until the bitmap arrived,
+     which on a slow mobile connection reads as a broken image rather than a loading one.
+     Reset on every slide change so each new photo shimmers until it is actually painted. */
+  const [heroLoaded, setHeroLoaded] = useState(false);
+  /* Depends on `img` alone, not on `mainSrc`: mainSrc is derived from `img` and is declared
+     further down (line ~300), so referencing it here would be a use-before-declaration.
+     Every slide change already implies a new source, so the reset still fires correctly. */
+  useEffect(() => { setHeroLoaded(false); }, [img]);
   const [lightbox, setLightbox] = useState(false);
   const [lbIdx, setLbIdx] = useState(0);
   const [lbZoom, setLbZoom] = useState(false);
@@ -314,12 +318,12 @@ export default function ProductPageClient({ product, sizeChartHtml, sizeChartIma
           <div
             ref={mainRef}
             className={"pdp-main-img" + (N <= 1 ? " single" : "")}
-            data-vt-hero
             onTouchStart={onMainTouchStart}
             onTouchMove={onMainTouchMove}
             onTouchEnd={onMainTouchEnd}
             onTouchCancel={onMainTouchEnd}
           >
+            {mainSrc && !heroLoaded && <div className="sk sk-fill" aria-hidden="true" />}
             {mainSrc ? (
               <img
                 src={imgSrc(mainSrc, PDP_SRC_WIDTH) || mainSrc}
@@ -328,8 +332,11 @@ export default function ProductPageClient({ product, sizeChartHtml, sizeChartIma
                 alt={product.images[img]?.alt || product.title}
                 className={"pdp-img" + (hoverZoom ? " hz" : "")}
                 fetchPriority="high"
-                onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; }}
-                style={hoverZoom ? { transformOrigin: "50% 50%" } : undefined}
+                onLoad={() => setHeroLoaded(true)}
+                /* A failed photo must not leave the shimmer running forever: mark it settled
+                   so the skeleton unmounts and the box falls back to its plain background. */
+                onError={(e) => { (e.currentTarget as HTMLImageElement).style.opacity = "0"; setHeroLoaded(true); }}
+                style={{ position: "relative", zIndex: 1, ...(hoverZoom ? { transformOrigin: "50% 50%" } : null) }}
                 onMouseEnter={() => { if (window.matchMedia("(hover: hover)").matches) setHoverZoom(true); }}
                 onMouseLeave={() => { setHoverZoom(false); }}
                 onMouseMove={(e) => {
@@ -547,16 +554,21 @@ export default function ProductPageClient({ product, sizeChartHtml, sizeChartIma
             <button className="modal-close" onClick={() => setChart(false)} aria-label="Close">×</button>
             <h3>Size Chart</h3>
             {sizeChartImage && <img src={sizeChartImage} alt="Size chart" className="sizechart-img" />}
+            {/* sizeChartHtml arrives already sanitised by the server component
+                (app/products/[slug]/page.tsx → lib/sanitize). The four .replace() calls
+                that used to run here were a blocklist, and 14 of 16 known payloads got
+                through it: `<img/src=x/onerror=…>` and `<svg/onload=…>` (slash where the
+                regex demanded \s), `<iframe>` (never filtered at all), entity-encoded
+                `jav&#x09;ascript:`, a `<style>` CSS beacon, `<meta http-equiv=refresh>`,
+                `<form action=…>`, `<scr<script>ipt>` reassembly, `<details/open/ontoggle>`,
+                `<body/onload>`, `<input/autofocus/onfocus>` and an mXSS
+                `<math><mtext><table><mglyph><style>` chain. Client-side filtering also
+                ran after React had the string, on a value only the server could trust. */}
+            {/* Rendered verbatim: the server component already sanitised this
+                (lib/sanitize allow-list) and applied .sizechart-table. No client-side
+                filtering is left, and none is needed. */}
             {!sizeChartImage && sizeChartHtml && (
-              <div
-                dangerouslySetInnerHTML={{
-                  __html: sizeChartHtml
-                    .replace(/<script[\s\S]*?>[\s\S]*?<\/script>/gi, "")
-                    .replace(/\son[a-z]+\s*=\s*("[^"]*"|'[^']*'|[^\s>]+)/gi, "")
-                    .replace(/javascript\s*:/gi, "")
-                    .replace(/<table/, '<table class="sizechart-table"'),
-                }}
-              />
+              <div dangerouslySetInnerHTML={{ __html: sizeChartHtml }} />
             )}
             <p style={{ fontSize: 12.5, color: "var(--muted)", marginTop: 14 }}>Measurements are approximate. Between sizes? We recommend sizing up.</p>
           </div>
