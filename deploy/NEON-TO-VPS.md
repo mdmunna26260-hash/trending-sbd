@@ -162,7 +162,7 @@ printenv DATABASE_URL | sed -E 's#:[^@]*@#:•••@#'         # which Neon end
 ```
 
 If the deployed image predates this commit and you would rather not rebuild, install the helper from inside
-the container — `node:20` has a global `fetch` and nothing else useful is in there:
+the container — `node:24` has a global `fetch` and nothing else useful is in there:
 
 ```sh
 cd /app

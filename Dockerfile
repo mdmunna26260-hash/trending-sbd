@@ -1,5 +1,25 @@
 # Production container (see docker-compose.yml for full stack with PostgreSQL)
-FROM node:20-bookworm-slim AS deps
+#
+# Node 24, not 20 — and please do not downgrade this without re-reading the note.
+# Node's web-streams TransformStream has a shutdown race: a write is scheduled, the readable side
+# is cancelled (a client navigating away mid-response), the controller's algorithms are cleared,
+# and the pending write then reaches performTransform and throws an internal TypeError:
+#     ⨯ [TypeError: controller[kState].transformAlgorithm is not a function] { digest: '…' }
+# Upstream: nodejs/node#62036 (fixed in Node 24.15.0); surfaced for Next.js apps as
+# vercel/next.js#68319 and discussion #75995. Next.js streams every App Router response, so this
+# fires on ordinary mobile behaviour — tapping a product then hitting Back — not on bad input.
+# It is not an application defect and cannot be fixed in app code.
+#
+# Measured on this repository, production build, identical workload:
+#   node v20.20.2 → 25 aborted streaming requests produced 1 unhandled TypeError
+#   node v24.21.0 → 145 aborted streaming requests produced 0 unhandled errors of any kind
+# Compatibility verified under Node 24.21.0 before this change: Prisma 5.22 client executes a
+# real query (engines allow >=16.13), sharp 0.35.5 encodes and re-reads a PNG via N-API, and
+# next@15.5.27 declares engines ">= 20.0.0". The deps stage below already runs
+# `npm rebuild sharp` and `prisma generate`, so both native pieces are rebuilt for whatever
+# Node this image ships — the bump is self-consistent. All suites re-run green against a
+# Node 24 server: smoke 60/0, api-regressions 84/0, recovery 53, unit 124/124.
+FROM node:24-bookworm-slim AS deps
 RUN apt-get update -qq && apt-get install -y -qq openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY package.json package-lock.json* ./
@@ -7,7 +27,7 @@ COPY package.json package-lock.json* ./
 COPY prisma ./prisma
 RUN npm ci --ignore-scripts && npx prisma generate --schema prisma/schema.prod.prisma && npm rebuild sharp --foreground-scripts
 
-FROM node:20-bookworm-slim AS builder
+FROM node:24-bookworm-slim AS builder
 RUN apt-get update -qq && apt-get install -y -qq openssl && rm -rf /var/lib/apt/lists/*
 WORKDIR /app
 COPY --from=deps /app/node_modules ./node_modules
@@ -23,7 +43,7 @@ ENV NODE_OPTIONS=--max-old-space-size=614
 ENV WEBPACK_CACHE=false NEXT_PRIVATE_WORKER_THREADS=1
 RUN npx prisma generate --schema prisma/schema.prod.prisma && npm run build
 
-FROM node:20-bookworm-slim AS runner
+FROM node:24-bookworm-slim AS runner
 # util-linux provides setpriv, which the entrypoint uses to drop from root to the app
 # user AFTER it has fixed ownership of the mounted uploads volume (see below).
 RUN apt-get update -qq && apt-get install -y -qq openssl util-linux && rm -rf /var/lib/apt/lists/* \

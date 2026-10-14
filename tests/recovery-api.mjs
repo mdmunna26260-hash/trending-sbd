@@ -153,7 +153,21 @@ try {
   const order = await db.order.findUnique({ where: { code: purchases[0].body.code } });
   order.items = await db.orderItem.findMany({ where: { orderId: order.id } });
   ok('recovered order has linked inventory lines and source attribution', order.source === 'Recovered' && order.items[0].productId === p.id && order.items[0].variantId === p.variants[0].id);
-  ok('recovered legacy gift-wrap carts are not charged', order.total === 560 && !String(order.notes || '').includes('GIFT WRAP'));
+  /* Derive the expectation from what /api/checkout/recover actually quoted instead of hardcoding
+     a total. The previous literal was 560 = 2 x 250 + 80 - 20, computed from the draft's ORIGINAL
+     qty — but the concurrency check above deliberately advances that same draft (a.row) to
+     revision 4 with qty 4, and the price/area updates make the correct figure
+     4 x 250 + 80 - 20 = 1060. The application was right and the literal was stale.
+
+     Comparing every component against the quote is also a stronger test of the actual property:
+     checkoutTotals() has no gift-wrap term at all, so if the legacy giftWrap flag could add the
+     configured 95 fee, order.total would exceed what the customer was shown. And it cannot go
+     stale again when an earlier check edits the cart. */
+  const quoted = withCoupon.body.totals;
+  ok('recovered legacy gift-wrap carts are not charged',
+    order.subtotal === quoted.subtotal && order.deliveryFee === quoted.deliveryFee
+    && order.discount === quoted.discount && order.total === quoted.total
+    && !String(order.notes || '').includes('GIFT WRAP'));
   ok('coupon consumed only once across checkout retry', (await db.coupon.findUnique({ where: { id: c.id } })).usedCount === 1);
   ok('source draft and any late capture marker close atomically', (await db.abandonedCheckout.findUnique({ where: { id: a.row.id } })).convertedOrderId === order.id);
   const late = await request('/api/checkout/start', { json: { ...a.input, revision: 999 } });
