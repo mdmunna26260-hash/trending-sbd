@@ -349,3 +349,134 @@ test('over-long rate-limit keys are clamped, not stored verbatim', () => {
   for (const k of load.runtime.__rl.keys()) longest = Math.max(longest, k.length);
   assert.ok(longest <= 190, `a ${longest}-char key was stored`);
 });
+
+/* ---------------------------------------------------------------------------
+   Tokenizer termination.
+
+   A parser that can be made to spin forever is a denial-of-service vector in its
+   own right, whatever it would eventually emit — and this one is reachable from a
+   single admin text field: Category.sizeChart is sanitised while rendering a
+   PUBLIC product page, so one malformed value hangs that request forever and pins
+   a Node thread at 100% CPU (observed: the whole container became unresponsive,
+   load average 6+, every other request starved).
+
+   The stall was a "/" inside a tag that was not part of "/>":
+     · the attribute-name scan excludes "/", so it made zero progress
+     · readAttrValue() also stopped at "/", returning next === i
+   Either one left the loop pointing at the same character forever. This is exactly
+   the shape of the well-known slash-separated payloads (<img/src=x/onerror=…>,
+   <svg/onload=…>), so the inputs that most needed sanitising were the ones that
+   hung. Both loops now guarantee forward progress.
+   --------------------------------------------------------------------------- */
+
+/* Assert the real security property structurally rather than by substring: a payload
+   may legitimately survive as inert TEXT inside a quoted, escaped attribute value
+   (src="x/onerror=…" is a broken image URL, not a handler), so scanning the output for
+   "onerror" would be a false positive. What must never happen is an on* ATTRIBUTE.
+
+   Quoted values are consumed as single units — the first version of this helper regexed
+   for `name=` across the whole tag body and so reported `onerror` as an attribute when it
+   was only text inside src="…", failing on the very payloads it was written to clear. */
+function attributeNames(html) {
+  const names = [];
+  const tagRe = /<([a-zA-Z][a-zA-Z0-9-]*)((?:[^>"']|"[^"]*"|'[^']*')*)>/g;
+  for (const tag of String(html || '').matchAll(tagRe)) {
+    const body = tag[2];
+    let i = 0;
+    while (i < body.length) {
+      while (i < body.length && /[\s/]/.test(body[i])) i++;      // separators / stray solidi
+      const s = i;
+      while (i < body.length && !/[\s=/>"']/.test(body[i])) i++;  // attribute name
+      const name = body.slice(s, i).toLowerCase();
+      while (i < body.length && /\s/.test(body[i])) i++;
+      if (body[i] === "=") {
+        i++;
+        while (i < body.length && /\s/.test(body[i])) i++;
+        if (body[i] === '"' || body[i] === "'") {
+          const q = body[i];
+          const end = body.indexOf(q, i + 1);
+          i = end === -1 ? body.length : end + 1;                 // swallow the whole value
+        } else {
+          while (i < body.length && !/[\s>"']/.test(body[i])) i++;
+        }
+      }
+      if (name) names.push(name);
+      if (i === s) i++;                                           // progress guarantee
+    }
+  }
+  return names;
+}
+
+const SLASH_VECTORS = [
+  '<img/src=x/onerror=alert(document.domain)>',
+  '<svg/onload=alert(1)>',
+  '<details/open/ontoggle=alert(5)>x</details>',
+  '<body/onload=alert(1)>',
+  '<input/autofocus/onfocus=alert(1)>',
+  '<scr<script>ipt>alert(4)</scr</script>ipt>',
+  '<meta http-equiv=refresh content=0;url=https://evil.example>',
+  '<a/ href=/x/ onclick=/y>',
+  '<div/=//=//=',
+  '</scr</script>ipt>',
+];
+
+test('slash-separated payloads terminate and emit no event-handler attribute', () => {
+  for (const payload of SLASH_VECTORS) {
+    const t0 = Date.now();
+    const out = sanitizeHtml(payload);
+    const ms = Date.now() - t0;
+    /* Generous bound: every one of these finishes in ~1ms. A regression here does not
+       merely fail an assertion, it hangs the whole suite, which is also a clear signal. */
+    assert.ok(ms < 2000, `${payload}: sanitizeHtml took ${ms}ms — tokenizer is spinning`);
+    const handlers = attributeNames(out).filter((n) => n.startsWith('on'));
+    assert.deepEqual(handlers, [], `${payload}: emitted event handler(s) ${handlers} → ${out}`);
+    for (const banned of ['<script', '<iframe', '<style', '<form', '<svg', '<meta', '<details', '<input', '<body']) {
+      assert.ok(!String(out || '').toLowerCase().includes(banned),
+        `${payload}: output still contains ${banned} → ${out}`);
+    }
+  }
+});
+
+test('degenerate input cannot make the tokenizer spin', () => {
+  const degenerate = [
+    '<' + '/'.repeat(5000) + '>',                       // thousands of stray solidi
+    '<img ' + 'a/'.repeat(2000) + '>',                  // repeated name/solidus pairs
+    '<p ' + 'a'.repeat(20000) + '>',                    // one enormous attribute name
+    '<a href=' + 'x'.repeat(20000) + '>',               // enormous unquoted value
+    '<'.repeat(5000),                                   // never-closing angle brackets
+    '<a '.repeat(2000) + '>',
+    '<img src=' + '"'.repeat(1000),                     // unbalanced quotes
+    '<td title="a"><script>alert(1)</script>">cell</td>',
+    Array(500).fill('<img/src=x/onerror=alert(1)>').join(''),
+  ];
+  for (const payload of degenerate) {
+    const t0 = Date.now();
+    const out = sanitizeHtml(payload);
+    const ms = Date.now() - t0;
+    assert.ok(ms < 3000, `degenerate input (${payload.length} chars) took ${ms}ms — spinning`);
+    const handlers = attributeNames(out).filter((n) => n.startsWith('on'));
+    assert.deepEqual(handlers, [], `degenerate input emitted ${handlers}`);
+  }
+});
+
+test('a quote inside an attribute value is escaped, so it cannot break out', () => {
+  /* The whole allow-list is worthless if a value can close its own attribute. */
+  const out = String(sanitizeHtml('<img src=\'x" onerror="alert(1)\'>') || '');
+  assert.ok(out.includes('&quot;'), `quote was not escaped → ${out}`);
+  assert.ok(!/"\s*onerror\s*=/.test(out), `escaped quote still closed the attribute → ${out}`);
+  assert.deepEqual(attributeNames(out).filter((n) => n.startsWith('on')), [],
+    `an on* attribute survived → ${out}`);
+});
+
+test('a legitimate size chart still round-trips (the fix must not break the feature)', () => {
+  const chart = '<table class="sizechart-table"><thead><tr><th scope="col">Size</th>'
+    + '<th scope="col">Chest</th></tr></thead><tbody>'
+    + '<tr><td>M</td><td>40"</td></tr><tr><td>L</td><td>42"</td></tr>'
+    + '</tbody></table>';
+  const out = String(sanitizeHtml(chart));
+  assert.ok(out.includes('<table'), 'table dropped');
+  assert.ok(out.includes('<th'), 'th dropped');
+  assert.ok((out.match(/<tr>/g) || []).length === 3, `expected 3 rows, got → ${out}`);
+  assert.ok(out.includes('40&quot;') || out.includes('40"'), 'measurement lost');
+  assert.ok(out.includes('scope="col"'), 'scope attr lost');
+});

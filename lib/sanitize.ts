@@ -44,8 +44,15 @@ function readAttrValue(src: string, i: number): [string, number] {
     return [src.slice(i + 1, end), end + 1];
   }
   let j = i;
-  while (j < src.length && !/[\s/>]/.test(src[j])) j++;
-  return [src.slice(i, j), j];
+  /* An unquoted value runs to whitespace or the end of the tag. "/" is NOT a terminator
+     here — it used to be, which made `content=0;url=https://evil.example` return an empty
+     value with next === i. The caller then re-entered its loop pointing at that same "/",
+     made no progress, and spun forever: one malformed sizeChart value hung the product
+     page indefinitely. This matches HTML5 (an unquoted value may contain "/") and removes
+     the stall. */
+  while (j < src.length && !/[\s>]/.test(src[j])) j++;
+  /* Forward progress is a hard requirement: next must be > i or the caller can loop. */
+  return [src.slice(i, j), Math.max(j, i + 1)];
 }
 
 function tokenize(src: string): Token[] {
@@ -95,10 +102,21 @@ function tokenize(src: string): Token[] {
       if (ch === ">") { k++; break; }
       if (ch === "/" && src[k + 1] === ">") { selfClosing = true; k += 2; break; }
       if (/\s/.test(ch)) { k++; continue; }
+      /* A "/" that is not part of "/>" is a separator, exactly as a browser treats it —
+         which is why `<img/src=x/onerror=…>` and `<svg/onload=…>` execute. The attribute
+         scan below excludes "/" from a name, so without this branch a stray "/" produced
+         an empty name, left k where it was, and the loop spun forever. Skipping it both
+         matches real parsing and guarantees progress. */
+      if (ch === "/") { k++; continue; }
       // attribute name
       let a = k;
       while (a < src.length && !/[\s=/>]/.test(src[a])) a++;
       const attrName = src.slice(k, a).toLowerCase();
+      /* Second, unconditional progress guarantee. The scan above stops at "=", so a === k
+         is reachable for input like `<div =foo>`; that case is handled by the "=" branch,
+         but anything else must still advance or this loop cannot terminate. A parser that
+         can hang is itself a denial-of-service vector, independent of what it emits. */
+      if (a === k && src[k] !== "=") { k++; continue; }
       k = a;
       while (k < src.length && /\s/.test(src[k])) k++;
       if (src[k] === "=") {
@@ -106,7 +124,7 @@ function tokenize(src: string): Token[] {
         while (k < src.length && /\s/.test(src[k])) k++;
         const [value, next] = readAttrValue(src, k);
         if (attrName) attrs.push({ name: attrName, value });
-        k = next;
+        k = Math.max(next, k + 1);
       } else if (attrName) {
         attrs.push({ name: attrName, value: "" });
       }
@@ -114,7 +132,9 @@ function tokenize(src: string): Token[] {
 
     flushText(i);
     out.push(isClose ? { kind: "close", name } : { kind: "open", name, attrs, selfClosing });
-    i = k;
+    /* The outer loop must advance too: if a degenerate tag left k at or before i, step
+       past one character rather than re-reading the same "<" forever. */
+    i = k > i ? k : i + 1;
     textStart = i;
   }
   flushText(src.length);
