@@ -9,8 +9,20 @@ import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
-if (!['localhost', '127.0.0.1', '0.0.0.0'].includes(new URL(BASE).hostname) || !process.env.DATABASE_URL?.startsWith('file:') || process.env.NODE_ENV === 'production' || process.env.AUDIT_ALLOW_MUTATIONS !== '1') {
-  throw new Error('Use an isolated local SQLite app and set AUDIT_ALLOW_MUTATIONS=1. This test changes temporary data/settings; never run it against a live store.');
+/* Refuse anything that is not an isolated LOCAL database. SQLite (file:) always qualifies;
+   PostgreSQL qualifies only when the URL points at loopback, so a staging or production
+   Postgres host is still rejected outright — these suites write and delete rows.
+
+   Allowing loopback Postgres matters because production does not run SQLite: docker-compose.yml
+   ships postgres:16-alpine. The two engines differ in locking, transaction isolation, DDL
+   (`ADD COLUMN IF NOT EXISTS` exists only in Postgres) and query planning, so a suite that can
+   only ever execute against SQLite cannot tell you what production will actually do. */
+const DB_URL = process.env.DATABASE_URL || '';
+const dbIsLocal = DB_URL.startsWith('file:')
+  || (/^postgres(ql)?:\/\//.test(DB_URL)
+      && ['127.0.0.1', 'localhost', '::1'].includes((() => { try { return new URL(DB_URL).hostname; } catch { return ''; } })()));
+if (!['localhost', '127.0.0.1', '0.0.0.0'].includes(new URL(BASE).hostname) || !dbIsLocal || process.env.NODE_ENV === 'production' || process.env.AUDIT_ALLOW_MUTATIONS !== '1') {
+  throw new Error('Use an isolated local database (SQLite file: or loopback PostgreSQL) and set AUDIT_ALLOW_MUTATIONS=1. This test changes temporary data/settings; never run it against a live store.');
 }
 if (!process.env.SMOKE_ADMIN_PASSWORD) throw new Error('SMOKE_ADMIN_PASSWORD is required');
 const db = new PrismaClient();

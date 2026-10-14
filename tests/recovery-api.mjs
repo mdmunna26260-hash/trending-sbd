@@ -6,7 +6,14 @@ import net from 'node:net';
 import { PrismaClient } from '@prisma/client';
 
 const BASE = process.env.BASE_URL || 'http://localhost:3000';
-if (!['localhost', '127.0.0.1'].includes(new URL(BASE).hostname) || !process.env.DATABASE_URL?.startsWith('file:') || process.env.NODE_ENV === 'production' || process.env.AUDIT_ALLOW_MUTATIONS !== '1') throw Error('Isolated local SQLite + AUDIT_ALLOW_MUTATIONS=1 required');
+/* Isolated LOCAL database only — see the longer note in tests/api-regressions.mjs. SQLite always
+   qualifies; PostgreSQL only on loopback, because production runs postgres:16-alpine and a suite
+   that can never touch the real engine cannot predict it. Remote hosts stay rejected. */
+const DB_URL = process.env.DATABASE_URL || '';
+const dbIsLocal = DB_URL.startsWith('file:')
+  || (/^postgres(ql)?:\/\//.test(DB_URL)
+      && ['127.0.0.1', 'localhost', '::1'].includes((() => { try { return new URL(DB_URL).hostname; } catch { return ''; } })()));
+if (!['localhost', '127.0.0.1'].includes(new URL(BASE).hostname) || !dbIsLocal || process.env.NODE_ENV === 'production' || process.env.AUDIT_ALLOW_MUTATIONS !== '1') throw Error('Isolated local database (SQLite or loopback PostgreSQL) + AUDIT_ALLOW_MUTATIONS=1 required');
 if (!process.env.SMOKE_ADMIN_PASSWORD || !process.env.CRON_SECRET) throw Error('Local admin password and CRON_SECRET required');
 const db = new PrismaClient(), tag = 'recovery-' + crypto.randomBytes(5).toString('hex');
 const phones = [], productIds = [], couponIds = [], userIds = [], keys = [], originals = new Map(), sockets = new Set(), mails = [];
