@@ -4,6 +4,7 @@
    Export DATABASE_URL first (the CLI does not implicitly load .env). */
 import assert from 'node:assert/strict';
 import crypto from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import { PrismaClient } from '@prisma/client';
 import bcrypt from 'bcryptjs';
 
@@ -16,11 +17,12 @@ const db = new PrismaClient();
 const tag = 'regression-' + crypto.randomBytes(6).toString('hex');
 const productIds = [], couponIds = [], userIds = [], phones = [], ticketKeys = [];
 const originals = new Map();
-let adminCookie = '', pass = 0, fail = 0, sequence = 0;
+let adminCookie = '', pass = 0, fail = 0, skipped = 0, sequence = 0;
 const check = (name, ok, detail = '') => {
   if (ok) { pass++; console.log('  ✓', name); }
   else { fail++; console.error('  ✗', name, detail); }
 };
+const skip = (name, why) => { skipped++; console.log('  ⊘', name, '— ' + why); };
 const cookieOf = (response, name) => (response.setCookie || '').split(/, (?=[^;]+=[^;]+)/).find((c) => c.startsWith(name + '='))?.split(';')[0] || '';
 async function request(path, options = {}) {
   const cookie = options.cookie ?? ((path.startsWith('/api/admin/') || path.startsWith('/admin')) ? adminCookie : '');
@@ -112,10 +114,32 @@ try {
 
   const recoveryCode = crypto.randomBytes(5).toString('hex');
   const twoFactor = await db.user.create({ data: { email: tag + '@2fa.test', name: tag, password: await bcrypt.hash('Local-2fa-fixture-2026', 10), role: 'SUPER_ADMIN', twoFactorEnabled: true, twoFactorSecret: 'JBSWY3DPEHPK3PXP', recoveryCodes: crypto.createHash('sha256').update(recoveryCode).digest('hex') } }); userIds.push(twoFactor.id);
+  /* 2FA block. lib/features.ts can switch the second factor off (adminTwoFactor: false, owner
+     request 2026-10-08) and app/api/admin/login/route.ts guards it on
+     FEATURES.adminTwoFactor && user.twoFactorEnabled && user.twoFactorSecret. The fixture above
+     is enrolled in both, so the flag is the ONLY thing that can suppress needs2fa — reading the
+     flag and cross-checking it against the server is therefore precise rather than a guess.
+
+     Skip only when source and behaviour AGREE the feature is off. The opposite mismatch — flag on
+     but the server not asking — is a real authentication bypass and still aborts loudly with a
+     message saying so; a blind "needs2fa is undefined, so skip" would have hidden exactly that.
+     The block is self-contained: nothing below it reads ticket, twoFactorCookie or twoFactor.
+     Previously this was an unconditional assert, so one hard failure here stopped the suite at
+     check 15 and the remaining 69 checks never ran at all. */
+  // .catch() keeps this file portable: sinzo-commerce has no lib/features.ts at all, and the two
+  // repositories share these suites. Missing file => no such flag => the block runs normally.
+  const featuresSrc = await readFile(new URL('../lib/features.ts', import.meta.url), 'utf8').catch(() => '');
+  const twoFactorFlagOff = /adminTwoFactor:\s*false/.test(featuresSrc);
   const firstFactor = async () => {
     const r = await request('/api/admin/login', { json: { email: twoFactor.email, password: 'Local-2fa-fixture-2026' }, cookie: '' });
-    assert.equal(r.body.needs2fa, true); ticketKeys.push('security.usedTicket.' + crypto.createHash('sha256').update(r.body.ticket).digest('hex')); return r.body.ticket;
+    assert.equal(r.body.needs2fa, true, 'adminTwoFactor is enabled in lib/features.ts but the login route did not ask for the second factor — authentication bypass');
+    ticketKeys.push('security.usedTicket.' + crypto.createHash('sha256').update(r.body.ticket).digest('hex')); return r.body.ticket;
   };
+  if (twoFactorFlagOff) {
+    const off = await request('/api/admin/login', { json: { email: twoFactor.email, password: 'Local-2fa-fixture-2026' }, cookie: '' });
+    if (off.body?.needs2fa !== true) skip('2FA block (6 checks)', 'adminTwoFactor: false in lib/features.ts, and the login route agrees');
+    else check('adminTwoFactor is off in lib/features.ts but the login route still asks for it', false, 'flag and behaviour disagree');
+  } else {
   const ticket = await firstFactor();
   await expect('2FA password-step ticket is not an admin session', '/api/admin/products', { cookie: 'sz_session=' + ticket }, 401);
   await expectRedirect('2FA ticket cannot open admin data pages', '/admin/customers', 'sz_session=' + ticket);
@@ -128,6 +152,7 @@ try {
   const revokedTicket = await firstFactor();
   await db.user.update({ where: { id: twoFactor.id }, data: { sessionVersion: { increment: 1 } } });
   await expect('2FA ticket is invalid after session revocation', '/api/admin/login/2fa', { json: { ticket: revokedTicket, code: recoveryCode }, cookie: '' }, 401);
+  }
 
   for (const qty of [0, -1, 1.5]) await expect('checkout rejects quantity ' + qty, '/api/checkout', { json: await checkout(p, { items: [{ productId: p.id, variantId: p.variants[0].id, qty }] }) }, 400);
   await expect('checkout rejects a nonexistent variant instead of falling back', '/api/checkout', { json: await checkout(p, { items: [{ productId: p.id, variantId: 2147483647, qty: 1 }] }) }, 400);
@@ -267,5 +292,5 @@ try {
   } catch (error) { fail++; console.error('Fixture cleanup failed:', error.message); }
   await db.$disconnect();
 }
-console.log(`\nAPI regressions: ${pass} passed, ${fail} failed`);
+console.log(`\nAPI regressions: ${pass} passed, ${fail} failed` + (skipped ? `, ${skipped} skipped (hidden by lib/features.ts)` : ``));
 process.exitCode = fail ? 1 : 0;
