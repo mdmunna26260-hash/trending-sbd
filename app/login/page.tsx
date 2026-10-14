@@ -11,6 +11,7 @@ const GOOGLE_ERRORS: Record<string, string> = {
   google_token: "Google theke token nilam na — abar try korun.",
   google_email: "Google account er email verified na.",
   google_error: "Google login e somossa holo — abar try korun.",
+  rate_limited: "Onek bar try kora hoyeche — koyek minute por abar try korun.",
 };
 
 export default function CustomerLoginPage() {

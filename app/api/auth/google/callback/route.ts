@@ -3,6 +3,8 @@ import { db } from "@/lib/db";
 import { getSettings, envFallback } from "@/lib/settings";
 import { createCustomerToken, customerCookie } from "@/lib/customer-auth";
 import { subscribeImplicit } from "@/lib/newsletter";
+import { rateLimit } from "@/lib/auth";
+import { getClientIp } from "@/lib/ua";
 export const dynamic = "force-dynamic";
 
 /* The public origin of the storefront.
@@ -25,6 +27,17 @@ function publicBase(req: Request): string {
    New Google accounts get a temporary internal phone id — they can set their
    real mobile number from the Account page (used for order lookup). */
 export async function GET(req: Request) {
+  /* Caps how often this server can be pushed into calling Google's token endpoint on an attacker's
+     behalf. Unbounded, that risks Google throttling or suspending the OAuth client itself, which
+     would break login for every customer at once. The `state` cookie check further down already
+     rejects forged callbacks, so this is about outbound-call volume and the find-or-create DB
+     write, not about authentication. Same generous 40/10min per IP as step 1, for carrier-grade NAT. */
+  if (!rateLimit(`gauth-cb:${getClientIp(req)}`, 40, 10 * 60 * 1000)) {
+    /* publicBase() rather than req.url — see the same note in step 1. Behind Traefik req.url
+       carries the container bind address, so a req.url-based redirect would send the shopper to
+       http://0.0.0.0:3000/login instead of the real domain. */
+    return NextResponse.redirect(`${publicBase(req)}/login?err=rate_limited`);
+  }
   const url = new URL(req.url);
   const origin = publicBase(req);
   const code = url.searchParams.get("code");

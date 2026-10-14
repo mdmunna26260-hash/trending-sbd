@@ -50,6 +50,38 @@ services:
       retries: 3
       start_period: 40s
 
+    # ── Edge rate limiting (Traefik, fronted by Dokploy) ────────────────────────
+    # A limit here rejects floods BEFORE they reach Node. On an 896 MB container
+    # running one Node process that is worth more than it looks: a single pegged
+    # thread starves every other request, which is exactly how the sanitizeHtml()
+    # tokenizer hang took the whole app down (load average 6+, all routes dead).
+    #
+    # This block only DEFINES the middleware. Attaching it needs the router name
+    # Dokploy generated, which this file cannot know — see it in the dashboard
+    # under the service → Domain → Advanced → Traefik labels, then add:
+    #     traefik.http.routers.<YOUR-ROUTER-NAME>.middlewares=sinzo-ratelimit
+    # While unattached it is inert, so committing this cannot break routing or TLS.
+    #
+    # WARNING — if the domain is proxied through Cloudflare (orange cloud on),
+    # Traefik sees Cloudflare's IPs instead of visitors', so every shopper lands in
+    # ONE shared bucket and a busy hour would 429 the entire store. In that case
+    # either use a Cloudflare Rate Limiting rule instead (better layer anyway), or
+    # first give Traefik the real client IP via forwardedHeaders.trustedIPs set to
+    # Cloudflare's published ranges. The numbers below are deliberately loose so
+    # this stays survivable even if that is misconfigured.
+    #
+    # The healthcheck above runs wget INSIDE the container, so it never traverses
+    # Traefik and cannot be throttled by this.
+    #
+    # Tuning: average is requests/second per source IP once the burst is spent.
+    # 200/500 only catches real floods. To tighten just the login surface, define a
+    # second middleware (e.g. average=5, burst=20) and attach it to a router whose
+    # rule matches PathPrefix(`/api/auth`) and PathPrefix(`/api/admin/login`).
+    labels:
+      - "traefik.http.middlewares.sinzo-ratelimit.ratelimit.average=200"
+      - "traefik.http.middlewares.sinzo-ratelimit.ratelimit.burst=500"
+      - "traefik.http.middlewares.sinzo-ratelimit.ratelimit.period=1s"
+
 volumes:
   pgdata:
   uploads:

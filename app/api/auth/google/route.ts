@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSettings, envFallback } from "@/lib/settings";
+import { rateLimit } from "@/lib/auth";
+import { getClientIp } from "@/lib/ua";
 import crypto from "crypto";
 export const dynamic = "force-dynamic";
 
@@ -23,10 +25,26 @@ function publicBase(req: Request): string {
    The redirect URI to register in Google Console is exactly:
        https://YOUR-DOMAIN/api/auth/google/callback                                */
 export async function GET(req: Request) {
+  /* Before getSettings(), so a flood never reaches Postgres. 40/10min per IP: a shopper clicks
+     "Continue with Google" once or twice, while the budget still absorbs a whole office or a
+     carrier-grade NAT pool (routine on BD mobile data) sharing one address. Redirect rather than
+     a bare 429 because this is a browser navigation, not an XHR. */
+  if (!rateLimit(`gauth:${getClientIp(req)}`, 40, 10 * 60 * 1000)) {
+    /* Built from publicBase(), NOT req.url: behind Traefik the request's own Host is the
+       container bind address, so new URL(..., req.url) would redirect a real shopper to
+       http://0.0.0.0:3000/login — a dead page — at the exact moment they were already being
+       told "too many requests". publicBase() prefers NEXT_PUBLIC_SITE_URL, which the compose
+       file sets to the real domain. */
+    return NextResponse.redirect(`${publicBase(req)}/login?err=rate_limited`);
+  }
   const s = envFallback(await getSettings());
   const clientId = s.integrations?.googleClientId || process.env.GOOGLE_CLIENT_ID || "";
   if (!clientId) {
-    return NextResponse.redirect(new URL("/login?err=google_not_configured", req.url));
+    /* publicBase(), not req.url — same latent bug the rate-limit redirect above had. Behind
+       Traefik req.url carries the container bind address, so this sent anyone who tapped
+       "Continue with Google" while the Client ID was missing to http://0.0.0.0:3000/login,
+       which is a dead page in a browser rather than the intended Banglish explanation. */
+    return NextResponse.redirect(`${publicBase(req)}/login?err=google_not_configured`);
   }
   const origin = publicBase(req);
   const state = crypto.randomBytes(18).toString("hex");
