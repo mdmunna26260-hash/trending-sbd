@@ -63,6 +63,20 @@ export async function POST(req: Request) {
 /* DELETE → unsubscribe this browser */
 export async function DELETE(req: Request) {
   try {
+    /* Added after the POST limiter: this is the third unauthenticated write on this route and was
+       left uncapped. Each call runs ensureExtraTables() — real DDL — plus a deleteMany, so junk
+       endpoints spammed at it amplify into unbounded database work for nothing. 20/hour per IP
+       matches POST and is far above a person toggling notifications off.
+
+       Note this handler also has no ownership check: it deletes whatever endpoint the body names.
+       That is not exploitable for deleting OTHERS' subscriptions, because a push endpoint is a long
+       opaque unguessable token that this API never returns (GET answers only {publicKey, subscribed}),
+       so possession of it is effectively the capability. It is left as-is deliberately — tying
+       subscriptions to customer sessions is a data-model change, not a hardening one — but it is
+       recorded in the review as a known gap. */
+    if (!rateLimit(`push-del:${getClientIp(req)}`, 20, 60 * 60 * 1000)) {
+      return NextResponse.json({ error: "Too many requests" }, { status: 429 });
+    }
     const b = await req.json().catch(() => ({}));
     if (b.endpoint) {
       await ensureExtraTables().catch(() => {});
