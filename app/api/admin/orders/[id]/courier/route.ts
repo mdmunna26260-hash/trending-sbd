@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePerm } from "@/lib/admin-guard";
+import { parseIdParam } from "@/lib/admin-id";
 import { createConsignment, checkStatusByConsignment } from "@/lib/steadfast";
 import { logAudit } from "@/lib/auth";
 import { emailCustomerStatus } from "@/lib/notify";
@@ -11,7 +12,9 @@ export async function POST(req: Request, props: Ctx) {
   const params = await props.params;
   const g = await requirePerm("orders", req);
   if ("res" in g) return g.res;
-  const order = await db.order.findUnique({ where: { id: Number(params.id) }, include: { items: true } });
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid order ID" }, { status: 400 });
+  const order = await db.order.findUnique({ where: { id }, include: { items: true } });
   if (!order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   if (order.courierConsignmentId) return NextResponse.json({ error: "Already sent to courier (" + order.courierConsignmentId + ")" }, { status: 400 });
   const r = await createConsignment(order);
@@ -36,7 +39,9 @@ export async function GET(req: Request, props: Ctx) {
   if ("res" in g) return g.res;
   const { ensureExtraTables } = await import("@/lib/db-ensure");
   await ensureExtraTables().catch(() => {});
-  const order = await db.order.findUnique({ where: { id: Number(params.id) } });
+  const gid = parseIdParam(params.id);
+  if (gid === null) return NextResponse.json({ error: "Invalid order ID" }, { status: 400 });
+  const order = await db.order.findUnique({ where: { id: gid } });
   if (!order?.courierConsignmentId) return NextResponse.json({ error: "No courier consignment on this order" }, { status: 400 });
   const beforeStatus = order.courierStatus;
   const r = await checkStatusByConsignment(order.courierConsignmentId);

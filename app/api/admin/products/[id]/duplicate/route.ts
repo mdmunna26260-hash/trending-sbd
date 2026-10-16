@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePerm } from "@/lib/admin-guard";
+import { parseIdParam } from "@/lib/admin-id";
 import { slugify } from "@/lib/slug";
 import { logAudit } from "@/lib/auth";
 
@@ -11,9 +12,11 @@ export async function POST(req: Request, props: Ctx) {
   const params = await props.params;
   const g = await requirePerm("products", req);
   if ("res" in g) return g.res;
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid product ID" }, { status: 400 });
   try {
     const source = await db.product.findUnique({
-      where: { id: Number(params.id) },
+      where: { id },
       include: { images: true, variants: true },
     });
     if (!source) return NextResponse.json({ error: "Not found" }, { status: 404 });

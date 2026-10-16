@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import { requirePerm } from "@/lib/admin-guard";
+import { parseIdParam } from "@/lib/admin-id";
 import { db } from "@/lib/db";
 import { broadcastReport, broadcastCsv } from "@/lib/wa-broadcast";
 
@@ -13,7 +14,8 @@ export async function GET(req: Request, props: { params: Promise<{ id: string }>
   const params = await props.params;
   const g = await requirePerm("settings", req);
   if ("res" in g) return g.res;
-  const id = Number(params.id);
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid broadcast ID" }, { status: 400 });
   const report = await broadcastReport(id);
   if (!report) return NextResponse.json({ error: "Campaign ta nei" }, { status: 404 });
 

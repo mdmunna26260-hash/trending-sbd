@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePerm } from "@/lib/admin-guard";
+import { parseIdParam } from "@/lib/admin-id";
 import { logAudit } from "@/lib/auth";
 import { slugify } from "@/lib/slug";
 
@@ -13,7 +14,9 @@ export async function GET(req: Request, props: Ctx) {
   const params = await props.params;
   const g = await requirePerm("marketing", req);
   if ("res" in g) return g.res;
-  const post = await db.blogPost.findUnique({ where: { id: Number(params.id) } });
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
+  const post = await db.blogPost.findUnique({ where: { id } });
   if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ post });
 }
@@ -24,7 +27,8 @@ export async function PUT(req: Request, props: Ctx) {
   if ("res" in g) return g.res;
   try {
     const b = await req.json();
-    const id = Number(params.id);
+    const id = parseIdParam(params.id);
+    if (id === null) return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
     const before = await db.blogPost.findUnique({ where: { id } });
     if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const data: any = {};
@@ -59,7 +63,8 @@ export async function DELETE(req: Request, props: Ctx) {
   const params = await props.params;
   const g = await requirePerm("marketing", req);
   if ("res" in g) return g.res;
-  const id = Number(params.id);
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
   const post = await db.blogPost.findUnique({ where: { id } });
   if (!post) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await db.blogPost.delete({ where: { id } });

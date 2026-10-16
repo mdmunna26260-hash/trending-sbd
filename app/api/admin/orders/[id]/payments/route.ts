@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePerm } from "@/lib/admin-guard";
+import { parseIdParam } from "@/lib/admin-id";
 import { logAudit } from "@/lib/auth";
 import { PAYMENT_KINDS, methodLabel, paymentStatusFor, paymentSummary, summarize, type PaymentRow } from "@/lib/payments";
 export const dynamic = "force-dynamic";
@@ -17,7 +18,9 @@ export async function GET(_req: Request, props: Ctx) {
   if ("res" in g) return g.res;
   const { ensureExtraTables } = await import("@/lib/db-ensure");
   await ensureExtraTables().catch(() => {});
-  const data = await paymentSummary(Number(params.id));
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid order ID" }, { status: 400 });
+  const data = await paymentSummary(id);
   if (!data.order) return NextResponse.json({ error: "Order not found" }, { status: 404 });
   return NextResponse.json(data);
 }
@@ -28,7 +31,8 @@ export async function POST(req: Request, props: Ctx) {
   if ("res" in g) return g.res;
   const { ensureExtraTables } = await import("@/lib/db-ensure");
   await ensureExtraTables().catch(() => {});
-  const id = Number(params.id);
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid order ID" }, { status: 400 });
   const b = await req.json().catch(() => ({}));
   const amount = Math.round(Number(b.amount) * 100) / 100;
   if (!(amount > 0)) return NextResponse.json({ error: "Amount must be greater than 0" }, { status: 400 });
@@ -64,7 +68,9 @@ export async function DELETE(req: Request, props: Ctx) {
   const pid = Number(new URL(req.url).searchParams.get("paymentId"));
   if (!pid) return NextResponse.json({ error: "paymentId required" }, { status: 400 });
   const row = await db.payment.findUnique({ where: { id: pid } });
-  if (!row || row.orderId !== Number(params.id)) return NextResponse.json({ error: "Payment not found on this order" }, { status: 404 });
+  const did = parseIdParam(params.id);
+  if (did === null) return NextResponse.json({ error: "Invalid order ID" }, { status: 400 });
+  if (!row || row.orderId !== did) return NextResponse.json({ error: "Payment not found on this order" }, { status: 404 });
   await db.payment.delete({ where: { id: pid } });
   const order = await db.order.findUnique({ where: { id: row.orderId } });
   const rows = (await db.payment.findMany({ where: { orderId: row.orderId } })) as PaymentRow[];

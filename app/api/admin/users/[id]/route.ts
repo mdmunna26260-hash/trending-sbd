@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import bcrypt from "bcryptjs";
 import { db } from "@/lib/db";
 import { requirePerm } from "@/lib/admin-guard";
+import { parseIdParam } from "@/lib/admin-id";
 import { logAudit } from "@/lib/auth";
 export const dynamic = "force-dynamic";
 type Ctx = { params: Promise<{ id: string }> };
@@ -32,7 +33,8 @@ export async function PUT(req: Request, props: Ctx) {
   const params = await props.params;
   const g = await requireSuperAdmin(req);
   if ("res" in g) return g.res;
-  const id = Number(params.id);
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
   const target = await db.user.findUnique({ where: { id }, select: { id: true, email: true, role: true, active: true } });
   if (!target) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
@@ -87,7 +89,8 @@ export async function DELETE(req: Request, props: Ctx) {
   const params = await props.params;
   const g = await requireSuperAdmin(req);
   if ("res" in g) return g.res;
-  const id = Number(params.id);
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
   if (id === g.user.id) return NextResponse.json({ error: "You cannot delete yourself" }, { status: 400 });
   const target = await db.user.findUnique({ where: { id }, select: { role: true, active: true, email: true } });
   if (!target) return NextResponse.json({ ok: true });

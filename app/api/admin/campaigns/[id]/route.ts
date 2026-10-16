@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePerm } from "@/lib/admin-guard";
+import { parseIdParam } from "@/lib/admin-id";
 import { logAudit } from "@/lib/auth";
 import { sendBatch } from "@/lib/campaign";
 
@@ -16,7 +17,9 @@ export async function GET(req: Request, props: Ctx) {
   await ensureExtraTables().catch(() => {});
   const g = await requirePerm("marketing", req);
   if ("res" in g) return g.res;
-  const campaign = await db.campaign.findUnique({ where: { id: Number(params.id) } });
+  const gid = parseIdParam(params.id);
+  if (gid === null) return NextResponse.json({ error: "Invalid campaign ID" }, { status: 400 });
+  const campaign = await db.campaign.findUnique({ where: { id: gid } });
   if (!campaign) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ campaign });
 }
@@ -27,7 +30,8 @@ export async function POST(req: Request, props: Ctx) {
   await ensureExtraTables().catch(() => {});
   const g = await requirePerm("marketing", req);
   if ("res" in g) return g.res;
-  const id = Number(params.id);
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid campaign ID" }, { status: 400 });
   try {
     const b = await req.json().catch(() => ({}));
     if (String(b.action || "") === "send") {
@@ -52,7 +56,8 @@ export async function PUT(req: Request, props: Ctx) {
   await ensureExtraTables().catch(() => {});
   const g = await requirePerm("marketing", req);
   if ("res" in g) return g.res;
-  const id = Number(params.id);
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid campaign ID" }, { status: 400 });
   const before = await db.campaign.findUnique({ where: { id } });
   if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
   if (before.status !== "DRAFT") return NextResponse.json({ error: "A campaign that has already started sending cannot be edited." }, { status: 400 });
@@ -78,7 +83,8 @@ export async function DELETE(req: Request, props: Ctx) {
   await ensureExtraTables().catch(() => {});
   const g = await requirePerm("marketing", req);
   if ("res" in g) return g.res;
-  const id = Number(params.id);
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid campaign ID" }, { status: 400 });
   const c = await db.campaign.findUnique({ where: { id } });
   if (!c) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await db.campaign.delete({ where: { id } });

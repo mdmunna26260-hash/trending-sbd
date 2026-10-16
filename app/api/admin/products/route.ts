@@ -39,6 +39,17 @@ export async function POST(req: Request) {
   try {
     const b = await req.json();
     if (!b.title || b.price == null) return NextResponse.json({ error: "Title and price are required" }, { status: 400 });
+    /* images and variants are optional, but when present they must have the right shape.
+       A non-array reached `.map` and threw a TypeError that the catch below turned into a
+       500 carrying the raw message back to the client. */
+    if (b.images != null && (!Array.isArray(b.images) || b.images.some((u: unknown) => typeof u !== "string" || !u.trim()))) {
+      return NextResponse.json({ error: "images must be an array of non-empty URL strings" }, { status: 400 });
+    }
+    if (b.variants != null && (!Array.isArray(b.variants) || b.variants.some((v: unknown) => !v || typeof v !== "object" || Array.isArray(v)))) {
+      return NextResponse.json({ error: "variants must be an array of objects" }, { status: 400 });
+    }
+    const imageUrls: string[] = Array.isArray(b.images) ? b.images : [];
+    const variantRows: any[] = Array.isArray(b.variants) ? b.variants : [];
     const slug = b.slug ? slugify(b.slug) : slugify(b.title);
     const exists = await db.product.findUnique({ where: { slug } });
     const finalSlug = exists ? slug + "-" + Date.now().toString(36) : slug;
@@ -61,8 +72,8 @@ export async function POST(req: Request) {
         status: b.status || "ACTIVE", featured: !!b.featured, tags: b.tags || null,
         sizeChartImage: b.sizeChartImage || null, badge: b.badge || null, isNew: !!b.isNew, isBestSeller: !!b.isBestSeller,
         categoryId: b.categoryId ? Number(b.categoryId) : null,
-        images: { create: (b.images || []).map((u: string, i: number) => ({ url: u, position: i, alt: b.title })) },
-        variants: { create: (b.variants || []).map((v: any) => ({ size: v.size || null, color: v.color || null, sku: v.sku || null, price: v.price ? Number(v.price) : null, stock: Number(v.stock) || 0, image: v.image || null })) },
+        images: { create: imageUrls.map((u: string, i: number) => ({ url: u, position: i, alt: String(b.title) })) },
+        variants: { create: variantRows.map((v: any) => ({ size: v.size || null, color: v.color || null, sku: v.sku || null, price: v.price ? Number(v.price) : null, stock: Number(v.stock) || 0, image: v.image || null })) },
       },
       include: { images: true, variants: true },
     });

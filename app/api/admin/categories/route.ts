@@ -13,6 +13,13 @@ export async function POST(req: Request) {
   if ("res" in g) return g.res;
   const b = await req.json();
   if (!b.name) return NextResponse.json({ error: "Name required" }, { status: 400 });
-  const c = await db.category.create({ data: { name: b.name, slug: slugify(b.slug || b.name), description: b.description || null, image: b.image || null, sizeChart: b.sizeChart || null } });
+  /* These all land in String columns. A number, array or object used to reach Prisma and
+     throw, surfacing as a 500 from an endpoint with no surrounding try/catch. */
+  for (const f of ["name", "slug", "description", "image", "sizeChart"] as const) {
+    if (b[f] != null && typeof b[f] !== "string") {
+      return NextResponse.json({ error: `${f} must be a string` }, { status: 400 });
+    }
+  }
+  const c = await db.category.create({ data: { name: String(b.name), slug: slugify(b.slug || b.name), description: b.description || null, image: b.image || null, sizeChart: b.sizeChart || null } });
   return NextResponse.json({ ok: true, category: c });
 }

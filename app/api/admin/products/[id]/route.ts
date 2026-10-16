@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { requirePerm } from "@/lib/admin-guard";
+import { parseIdParam } from "@/lib/admin-id";
 import { logAudit } from "@/lib/auth";
 
 async function syncCollection(productId: number, slug: string, want: boolean) {
@@ -18,7 +19,9 @@ export async function GET(req: Request, props: Ctx) {
   const params = await props.params;
   const g = await requirePerm("products", req);
   if ("res" in g) return g.res;
-  const p = await db.product.findUnique({ where: { id: Number(params.id) }, include: { images: true, variants: true } });
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid product ID" }, { status: 400 });
+  const p = await db.product.findUnique({ where: { id }, include: { images: true, variants: true } });
   return NextResponse.json({ product: p });
 }
 export async function PUT(req: Request, props: Ctx) {
@@ -30,7 +33,8 @@ export async function PUT(req: Request, props: Ctx) {
   if ("res" in g) return g.res;
   try {
     const b = await req.json();
-    const id = Number(params.id);
+    const id = parseIdParam(params.id);
+    if (id === null) return NextResponse.json({ error: "Invalid product ID" }, { status: 400 });
     const before = await db.product.findUnique({ where: { id }, include: { images: true } });
     if (!before) return NextResponse.json({ error: "Not found" }, { status: 404 });
     const data: any = {
@@ -93,7 +97,8 @@ export async function DELETE(req: Request, props: Ctx) {
   const params = await props.params;
   const g = await requirePerm("products", req);
   if ("res" in g) return g.res;
-  const id = Number(params.id);
+  const id = parseIdParam(params.id);
+  if (id === null) return NextResponse.json({ error: "Invalid product ID" }, { status: 400 });
   const p = await db.product.findUnique({ where: { id } });
   if (!p) return NextResponse.json({ error: "Not found" }, { status: 404 });
   await db.product.delete({ where: { id } });
