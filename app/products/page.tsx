@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getSettings, publicSettings } from "@/lib/settings";
 import { getCategories } from "@/lib/catalog";
 import { productSearchWhere, resolveCategorySlug, clean } from "@/lib/search";
-import { Header, Footer, Announcement } from "@/components/chrome";
+import { Header, Footer } from "@/components/chrome";
 import { ProductCard } from "@/components/parts";
 import { ProductGridSkeleton, Skeleton } from "@/components/loading-ui";
 import { Suspense } from "react";
@@ -51,7 +51,6 @@ export default async function ProductsPage(props: { searchParams: Promise<SP> })
 
   return (
     <>
-      <Announcement text={s.homepage?.announcement} />
       <Header storeName={cfg.store?.name || "Store"} categories={cats.map((c) => ({ name: c.name, slug: c.slug }))} />
       <div className="container shop-wrap">
         <div className="eyebrow">{activeCat ? "Category" : sp.q ? "Search" : "Shop"}</div>

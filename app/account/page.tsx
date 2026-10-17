@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import { getSettings, publicSettings } from "@/lib/settings";
 import { getCategories } from "@/lib/catalog";
 import { getCustomerSessionFromRequest } from "@/lib/customer-auth";
-import { Header, Footer, Announcement } from "@/components/chrome";
+import { Header, Footer } from "@/components/chrome";
 import { redirect } from "next/navigation";
 import AccountClient from "./client";
 import { ALLOW_URL_TOKEN } from "@/lib/session-token";
@@ -30,7 +30,6 @@ export default async function AccountPage(props: { searchParams: Promise<{ ct?: 
 
   return (
     <>
-      <Announcement text={s.homepage?.announcement} />
       <Header storeName={cfg.store?.name || "Store"} categories={cats.map((c) => ({ name: c.name, slug: c.slug }))} />
       <AccountClient
         customer={{ name: customer.name, phone: customer.phone, email: customer.email, address: customer.address, area: customer.area }}

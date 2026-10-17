@@ -1,7 +1,7 @@
 import { db } from "@/lib/db";
 import { getSettings, publicSettings } from "@/lib/settings";
 import { getCategories } from "@/lib/catalog";
-import { Header, Footer, Announcement } from "@/components/chrome";
+import { Header, Footer } from "@/components/chrome";
 import { ProductCard } from "@/components/parts";
 import Link from "next/link";
 import { notFound } from "next/navigation";
@@ -59,7 +59,6 @@ export default async function CollectionPage(props: { params: Promise<{ slug: st
   }));
   return (
     <>
-      <Announcement text={s.homepage?.announcement} />
       <Header storeName={cfg.store?.name || "Store"} categories={cats.map((c) => ({ name: c.name, slug: c.slug }))} />
       <div className="container" style={{ padding: "38px 24px 100px" }}>
         <div className="eyebrow">Collection</div>

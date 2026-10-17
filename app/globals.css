@@ -1245,7 +1245,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   .thumbs button { flex: 0 0 46px; }
   .thumbs img { width: 100%; }
 }
-/* Short phones: hero takes viewport minus header/announcement — CTA always visible */
+/* Short phones: hero takes viewport minus the header — CTA always visible */
 @media (max-width: 740px) and (max-height: 820px) {
   .hero-img { height: calc(100svh - 150px); min-height: 380px; max-height: 560px; }
 }

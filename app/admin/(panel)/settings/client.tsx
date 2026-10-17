@@ -368,7 +368,6 @@ export default function SettingsClient({ groups, user, userCount, hasCourier, co
             </div>
             <div className="af"><label>Container width (px)</label><input type="number" value={g.theme?.containerWidth ?? 1280} onChange={(e) => setG({ ...g, theme: { ...g.theme, containerWidth: Number(e.target.value) } })} /></div>
 
-            <div className="af full"><label>Announcement bar text</label><input value={g.homepage?.announcement || ""} onChange={(e) => setG({ ...g, homepage: { ...g.homepage, announcement: e.target.value } })} /></div>
             <div className="af full"><label>Hero headline (supports line breaks)</label><textarea style={{ minHeight: 60 }} value={g.homepage?.heroTitle || ""} onChange={(e) => setG({ ...g, homepage: { ...g.homepage, heroTitle: e.target.value } })} /></div>
             <div className="af full"><label>Hero subtitle</label><input value={g.homepage?.heroSubtitle || ""} onChange={(e) => setG({ ...g, homepage: { ...g.homepage, heroSubtitle: e.target.value } })} /></div>
             <F k="heroCta" label="Hero button text" group="homepage" />

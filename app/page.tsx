@@ -4,7 +4,7 @@ import type { CSSProperties } from "react";
 import { db } from "@/lib/db";
 import { getSettings, publicSettings } from "@/lib/settings";
 import { getCategories } from "@/lib/catalog";
-import { Header, Footer, Announcement } from "@/components/chrome";
+import { Header, Footer } from "@/components/chrome";
 import { ProductCard } from "@/components/parts";
 import { imgSrc } from "@/components/img-src";
 import { CartProvider } from "@/components/store";
@@ -288,7 +288,6 @@ async function HomeContent() {
 
   return (
     <CartProvider>
-      <Announcement text={hp.announcement} />
       <Header storeName={cfg.store?.name || "Store"} categories={cats.map((c) => ({ name: c.name, slug: c.slug }))} />
 
       {sectionCfg.filter((x) => x.enabled).map((x) => (
