@@ -152,11 +152,23 @@ function findPool(promotion: EnginePromotion, poolKey: string): EngineGiftPool |
   return promotion.giftPools.find((pool) => pool.key === poolKey) ?? null;
 }
 
+/**
+ * Slot labels are admin-authored and the natural thing to type is "Free Tee". Interpolated
+ * into the copy below that reads "Choose your free Free Tee." — strip a leading "free" so the
+ * shopper never reads it twice. A label that is ONLY "Free" is returned untouched rather than
+ * leaving a dangling sentence.
+ */
+export function giftLabelText(label: string): string {
+  const raw = String(label ?? '').trim();
+  const stripped = raw.replace(/^free\s+/i, '').trim();
+  return stripped || raw;
+}
+
 export const GIFT_MESSAGES = {
   unavailable: 'This gift is currently unavailable. Please choose another gift.',
   noLongerInPromotion: 'This gift is no longer part of the offer. Please choose another gift.',
   soldOutPool: 'All gifts for this tier are out of stock right now. You can still check out — a replacement will be offered as soon as stock returns.',
-  choose: (label: string) => `Choose your free ${label.toLowerCase()}.`,
+  choose: (label: string) => `Choose your free ${giftLabelText(label).toLowerCase()}.`,
   lockedKept: 'Your free gift from this offer has been kept — it stays valid while your cart still qualifies.',
 } as const;
 

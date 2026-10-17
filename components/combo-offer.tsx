@@ -27,6 +27,7 @@ import { useCart, toast, type CartLine } from "@/components/store";
 import { imgSrc } from "@/components/parts";
 import { evaluateCart, giftLinesToDrop, toComboView } from "@/lib/promotions/service";
 import type { EnginePromotion, GiftSelectionMap } from "@/lib/promotions/types";
+import { giftLabelText } from "@/lib/promotions/engine";
 
 /* ------------------------------------------------------------------ types */
 
@@ -138,7 +139,7 @@ function fallbackView(engine: EnginePromotion, lines: CartLine[]): ComboView {
       return {
         key, selectionKey: key, tierIndex: t.index, label: s.label, giftType: s.giftType,
         status: row ? "SELECTED" : "NEEDS_SELECTION",
-        message: row ? null : `Choose your free ${String(s.label).toLowerCase()}.`,
+        message: row ? null : `Choose your free ${giftLabelText(s.label).toLowerCase()}.`,
         blocking: false, locked: false,
         selectedVariantId: row?.variantId ?? null,
         candidates: toUiCandidates(engine, s.poolKey),
@@ -204,13 +205,13 @@ function GiftPicker({
         className="gift-modal"
         role="dialog"
         aria-modal="true"
-        aria-label={`Choose your free ${slot.label}`}
+        aria-label={`Choose your free ${giftLabelText(slot.label)}`}
         onClick={(e) => e.stopPropagation()}
       >
         <header className="gift-modal-head">
           <div>
             <div className="combo-kicker"><span className="ed-kicker-mark" aria-hidden />Free gift</div>
-            <h2 className="gift-modal-title">Choose your free {slot.label.toLowerCase()}</h2>
+            <h2 className="gift-modal-title">Choose your free {giftLabelText(slot.label).toLowerCase()}</h2>
             <p className="gift-modal-sub">
               {selectable.length} piece{selectable.length === 1 ? "" : "s"} to pick from · yours at <b>৳0</b>
             </p>
@@ -449,7 +450,7 @@ export function ComboOffer({ compact = false }: { compact?: boolean }) {
         {needSelection.length > 0 && (
           <div className="combo-cta-row">
             <button type="button" className="btn combo-cta" onClick={() => setPickerSlot(needSelection[0])}>
-              Choose your free {needSelection[0].label.toLowerCase()}
+              Choose your free {giftLabelText(needSelection[0].label).toLowerCase()}
             </button>
           </div>
         )}
