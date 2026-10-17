@@ -160,54 +160,63 @@ h1, h2, h3, .serif { font-family: var(--font-head); font-weight: 500; letter-spa
 .pcard { position: relative; }
 .pcard-img { position: relative; overflow: hidden; aspect-ratio: var(--img-ratio, 3 / 4); background: #eee9e2; border-radius: var(--radius); }
 .pcard-img img { width: 100%; height: 100%; object-fit: cover; transition: transform .6s ease; -webkit-user-drag: none; }
-/* Product-card image progress: one thin, equal-width segment per photo, placed in the gap
-   before the title. The absolutely positioned bar keeps photo cards aligned with single-image cards. */
+/* Carousel dots: one small dot per photo, centred in the gap before the title. They replaced
+   the old full-width segmented bar. The absolutely positioned row keeps photo cards aligned
+   with single-image cards. */
 .pcard-media { position: relative; }
-.image-progress {
+.carousel-dots {
   display: flex;
   align-items: center;
-  gap: 4px;
+  justify-content: center;
+  gap: 6px;
   width: 100%;
   min-width: 0;
 }
-.image-progress-segment {
+/* Same dot system as the home rails (.crs-dots): 6px idle, 9px filled for the current photo. */
+.carousel-dot {
   display: block;
   position: relative;
-  flex: 1 1 0;
-  min-width: 0;
-  height: 2px;
+  flex: 0 0 auto;
+  width: 6px;
+  height: 6px;
   border: 0;
   border-radius: 99px;
   padding: 0;
   background: rgba(20, 20, 20, .22);
-  transition: background-color .18s ease;
+  transition: background-color .18s ease, width .18s ease, height .18s ease;
 }
-.image-progress-segment.is-active { background: var(--text); }
-button.image-progress-segment {
+.carousel-dot.is-active { background: var(--text); width: 9px; height: 9px; }
+button.carousel-dot {
   -webkit-appearance: none;
   appearance: none;
   color: inherit;
   cursor: pointer;
 }
-@media (prefers-reduced-motion: reduce) { .image-progress-segment { transition: none; } }
-button.image-progress-segment::after {
+@media (prefers-reduced-motion: reduce) { .carousel-dot { transition: none; } }
+/* The dot stays tiny, but its hit area is a 41px-tall band. Horizontal inset stays at 3px so
+   neighbouring dots never overlap each other's tap targets (dot + gap = 11px). */
+button.carousel-dot::after {
   content: "";
   position: absolute;
-  inset: -11px 0;
+  inset: -18px -3px;
 }
-button.image-progress-segment:focus-visible { outline: none; }
-button.image-progress-segment:focus-visible::after {
-  inset: -8px 1px;
+button.carousel-dot:focus-visible { outline: none; }
+button.carousel-dot:focus-visible::after {
+  inset: -8px -5px;
   border: 2px solid var(--accent);
-  border-radius: 4px;
+  border-radius: 99px;
 }
 .pcard-progress {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: -8px;
-  pointer-events: none;              /* the whole card is the link — this bar is decoration */
+  bottom: -6px;                     /* sits inside the 14px gap before the title */
+  pointer-events: none;              /* the whole card is the link — these dots are decoration */
 }
+/* The card's gap is only 14px, so its dots run one step smaller than the PDP/rail dots
+   (5px idle, 7px active) — at 6/9 they would crowd the title. */
+.pcard-progress .carousel-dot { width: 5px; height: 5px; }
+.pcard-progress .carousel-dot.is-active { width: 7px; height: 7px; }
 @media (hover: hover) { .pcard:hover .pcard-img img { transform: scale(1.05); } }
 /* Badges are decoration on top of the photo — they must not punch a dead hole in the swipe
    surface (a gesture that started on a badge reached neither the photo gallery nor the rail).
@@ -216,6 +225,11 @@ button.image-progress-segment:focus-visible::after {
 /* Unified badge chip — matches reference look (small light chip, dark text, top-left, no border) */
 .badge { display: inline-block; background: #f7f5f1; color: #17150f; font-size: 10px; letter-spacing: .02em; padding: 4px 9px; border-radius: 4px; font-weight: 600; line-height: 1.2; }
 .badge.sale { background: var(--danger); color: #fff; }
+/* The discount chip on the card photo is the one red badge on the image. It uses the same
+   sale red as the "-21%" price text (.off → var(--danger)), and its hairline follows the fill
+   so the chip reads as one solid red block instead of a red fill in a tan outline. */
+.pcard-badges .badge.sale { background: var(--danger); color: #fff; border-color: var(--danger); }
+:root[data-theme="dark"] .pcard-badges .badge.sale { background: #b3392f; border-color: #b3392f; }
 .badge.oos { background: #7a7a7a; color: #fff; }
 .pcard-info { padding: 14px 2px 0; }
 .pcard-title { font-size: 14.5px; letter-spacing: .01em; font-weight: 500; color: var(--text); line-height: 1.35; }
@@ -897,7 +911,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .crs-ui { display: flex; align-items: center; justify-content: center; gap: 14px; padding: 14px 0 0; }
 .crs-arrow { width: 34px; height: 34px; border-radius: 99px; border: 1px solid var(--line); background: transparent; color: var(--text); font-size: 18px; line-height: 0; display: flex; align-items: center; justify-content: center; cursor: pointer; padding-bottom: 3px; }
 .crs-arrow:active { background: rgba(20, 20, 20, .06); }
-/* Home rails use page dots (product-photo galleries use the separate segmented progress bar). */
+/* Home rails use page dots; product-photo galleries use the same dot language (.carousel-dots). */
 .crs-dots { display: flex; gap: 6px; align-items: center; }
 .crs-dots button { width: 6px; height: 6px; border-radius: 99px; border: none; background: rgba(20, 20, 20, .22); padding: 0; cursor: pointer;
   transition: background .18s ease, width .18s ease, height .18s ease; }
@@ -1080,7 +1094,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .inf-spinner { width: 26px; height: 26px; border: 2px solid var(--line); border-top-color: var(--text); border-radius: 99px; animation: szspin .8s linear infinite; }
 @keyframes szspin { to { transform: rotate(360deg); } }
 .inf-end { text-align: center; color: var(--muted); font-size: 12px; letter-spacing: .12em; padding: 30px 0 6px; text-transform: uppercase; }
-.pcard-sizes { font-size: 12px; color: var(--muted); margin-top: 2px; letter-spacing: .02em; }
+/* .pcard-sizes removed — the card no longer prints the size list (see components/parts.tsx) */
 
 /* (colored badge variants retired — unified .badge chip above) */
 
@@ -1231,7 +1245,7 @@ table.tbl { width: 100%; border-collapse: collapse; font-size: 13.5px; }
   .thumbs button { flex: 0 0 46px; }
   .thumbs img { width: 100%; }
 }
-/* Short phones: hero takes viewport minus header/announcement — CTA always visible */
+/* Short phones: hero takes viewport minus the header — CTA always visible */
 @media (max-width: 740px) and (max-height: 820px) {
   .hero-img { height: calc(100svh - 150px); min-height: 380px; max-height: 560px; }
 }
@@ -2325,10 +2339,10 @@ html.theme-transition *::after {
 :root[data-theme="dark"] .pdp-price .off { color: #b3392f; }
 :root[data-theme="dark"] .badge.sale { background: #b3392f; }
 
-/* The inactive segments sit beneath the image: keep them visible in dark mode while the
-   active segment uses the theme text color. Home-rail dots keep their existing treatment. */
-:root[data-theme="dark"] .image-progress-segment:not(.is-active) { background: rgba(255, 255, 255, .26); }
-:root[data-theme="dark"] .image-progress-segment.is-active { background: var(--text); }
+/* Inactive dots sit on the light paper background: lift them in dark mode while the
+   active dot keeps the theme text color. */
+:root[data-theme="dark"] .carousel-dot:not(.is-active) { background: rgba(255, 255, 255, .30); }
+:root[data-theme="dark"] .carousel-dot.is-active { background: var(--text); }
 :root[data-theme="dark"] .crs-dots button { background: rgba(255, 255, 255, .26); }
 :root[data-theme="dark"] .crs-dots button.on { background: var(--text); }
 

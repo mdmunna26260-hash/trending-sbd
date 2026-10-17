@@ -3,7 +3,7 @@ import Link from "next/link";
 import { db } from "@/lib/db";
 import { getSettings, publicSettings } from "@/lib/settings";
 import { getCategories } from "@/lib/catalog";
-import { Header, Footer, Announcement } from "@/components/chrome";
+import { Header, Footer } from "@/components/chrome";
 import { imgSrc, imgSrcSet } from "@/components/img-src";
 import { blocks, readingMinutes, dateLabel } from "@/lib/blog";
 
@@ -40,7 +40,6 @@ export default async function BlogIndex() {
 
   return (
     <>
-      <Announcement text={s.homepage?.announcement} />
       <Header storeName={store.name || "Store"} categories={cats.map((c) => ({ name: c.name, slug: c.slug }))} />
       <main className="container blog-wrap">
         <div className="blog-head">

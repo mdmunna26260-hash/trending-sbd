@@ -35,21 +35,21 @@ export default function SmartImg({ src, alt, className, fallback = "/uploads/see
           images on the page, so on a mobile connection this is the one the shopper actually
           waits for — a shimmer reads as "loading" where a blank box reads as "broken". */}
       {!loaded && <div className={"sk sk-fill" + (className ? " " + className : "")} aria-hidden="true" />}
-    // eslint-disable-next-line @next/next/no-img-element
-    <img
-      ref={ref}
-      src={priority ? cur : cand[0].url}
-      srcSet={srcSet}
-      sizes={sizes}
-      alt={alt}
-      className={className ? className + " fade-img" + (loaded ? " loaded" : "") : "fade-img" + (loaded ? " loaded" : "")}
-      loading={priority ? "eager" : "lazy"}
-      decoding="async"
-      {...(priority ? { fetchPriority: "high" as const } : {})}
-      onLoad={() => setLoaded(true)}
-      onError={() => { if (cur !== fallback) setCur(fallback); else setDead(true); }}
-      style={{ position: "relative", zIndex: 1 }}
-    />
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img
+        ref={ref}
+        src={priority ? cur : cand[0].url}
+        srcSet={srcSet}
+        sizes={sizes}
+        alt={alt}
+        className={className ? className + " fade-img" + (loaded ? " loaded" : "") : "fade-img" + (loaded ? " loaded" : "")}
+        loading={priority ? "eager" : "lazy"}
+        decoding="async"
+        {...(priority ? { fetchPriority: "high" as const } : {})}
+        onLoad={() => setLoaded(true)}
+        onError={() => { if (cur !== fallback) setCur(fallback); else setDead(true); }}
+        style={{ position: "relative", zIndex: 1 }}
+      />
     </>
   );
 }

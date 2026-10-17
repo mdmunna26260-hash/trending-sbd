@@ -2,7 +2,6 @@ import type { CSSProperties } from "react";
 import Link from "next/link";
 import CardMedia from "./card-media";
 import QuickAdd from "./quick-add";
-import { sortSizes } from "@/lib/sizes";
 
 export { imgSrc, imgSrcSet, CARD_WIDTHS, CARD_SIZES, PDP_WIDTHS, PDP_SIZES, PDP_SRC_WIDTH, THUMB_WIDTHS } from "./img-src";
 export { sortSizes } from "@/lib/sizes";
@@ -43,7 +42,7 @@ export function ProductCard({ p, rd }: { p: CardProduct; rd?: number }) {
         <div className="pcard-badges">
           {p.stock <= 0 && !p.preorder && <span className="badge">SOLD OUT</span>}
           {p.preorder && <span className="badge">Pre-Order</span>}
-          {off > 0 && <span className="badge">-{off}%</span>}
+          {off > 0 && <span className="badge sale">-{off}%</span>}
           {p.badge && <span className="badge">{BADGE_LABELS[p.badge] || p.badge}</span>}
           {p.saleEnds && new Date(p.saleEnds).getTime() > Date.now() && off > 0 && (
             <span className="badge">FLASH</span>
@@ -61,9 +60,9 @@ export function ProductCard({ p, rd }: { p: CardProduct; rd?: number }) {
             </span>
           )}
         </div>
-        {p.sizes && p.sizes.length > 0 && (
-          <div className="pcard-sizes">Size: {sortSizes(p.sizes).join(", ")}</div>
-        )}
+        {/* The "Size: S, M, L" line was removed per request — the card now shows only
+            title, colour dots and price. Sizes are still available on the product page
+            and in the quick-add popover (components/quick-add.tsx uses p.sizes). */}
         <div className="price">
           <b>৳{p.price.toLocaleString("en-IN")}</b>
           {/* discount badge ("Save ৳X") removed per request — the struck compare price stays so the

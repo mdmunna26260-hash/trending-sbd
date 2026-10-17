@@ -3,7 +3,7 @@ import { db } from "@/lib/db";
 import { getSettings, publicSettings } from "@/lib/settings";
 import { getCategories } from "@/lib/catalog";
 import { clean } from "@/lib/search";
-import { Header, Footer, Announcement } from "@/components/chrome";
+import { Header, Footer } from "@/components/chrome";
 import { ProductCard, imgSrc } from "@/components/parts";
 import { ComboOffer } from "@/components/combo-offer";
 import { loadActivePromotion } from "@/lib/promotions/repository";
@@ -150,7 +150,6 @@ export default async function ComboPage() {
 
   return (
     <>
-      <Announcement text={s.homepage?.announcement} />
       <Header
         storeName={cfg.store?.name || "TRENDING'S"}
         categories={cats.map((c) => ({ name: c.name, slug: c.slug }))}

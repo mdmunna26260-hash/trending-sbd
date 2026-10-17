@@ -9,7 +9,7 @@ import { imgSrc, imgSrcSet, PDP_WIDTHS, PDP_SIZES, PDP_SRC_WIDTH, THUMB_WIDTHS }
 import { warmImage, warmWhenIdle } from "@/components/img-warm";
 import { trackRecentlyViewed } from "@/components/recently-viewed";
 import MobileGallery from "@/components/mobile-gallery";
-import SegmentedProgress from "@/components/segmented-progress";
+import CarouselDots from "@/components/carousel-dots";
 // LiveWatching import removed — live views OFF per user request
 import SoldCount from "@/components/sold-count";
 import { FEATURES } from "@/lib/features";
@@ -356,9 +356,9 @@ export default function ProductPageClient({ product, sizeChartHtml, sizeChartIma
             {avail <= 0 && !preorder && <div className="soldout-overlay"><span>Sold Out</span></div>}
           </div>
 
-          {/* One thin, clickable progress segment per photo, kept below the main image. */}
+          {/* One clickable dot per photo, kept below the main image. */}
           {N > 1 && (
-            <SegmentedProgress
+            <CarouselDots
               count={N}
               activeIndex={img}
               className="gal-progress"

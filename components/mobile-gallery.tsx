@@ -2,7 +2,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { imgSrc, imgSrcSet, PDP_WIDTHS, PDP_SIZES, PDP_SRC_WIDTH, THUMB_WIDTHS } from "./img-src";
 import { warmImage } from "./img-warm";
-import SegmentedProgress from "./segmented-progress";
+import CarouselDots from "./carousel-dots";
 
 type Img = { url: string; alt: string };
 
@@ -34,7 +34,7 @@ export default function MobileGallery({ images, title, active, onIndexChange }: 
     el.style.transform = `translate3d(-${i * W}%,0,0)`;
   }, []);
 
-  // keep track in sync when index changes from outside (progress bar/thumbs)
+  // keep track in sync when index changes from outside (dots/thumbs)
   useEffect(() => { if (!dragging) slideTo(active); }, [active, dragging, slideTo]);
 
   // keep the active thumbnail scrolled into view (strip scrolls, page never jumps)
@@ -168,10 +168,10 @@ export default function MobileGallery({ images, title, active, onIndexChange }: 
         </div>
       </div>
 
-      {/* Thin segmented progress bar BELOW the image: one segment per photo, with the active
-          segment filled. Tapping a segment jumps directly to that image. */}
+      {/* Carousel dots BELOW the image: one dot per photo, with the active dot filled.
+          Tapping a dot jumps directly to that image. */}
       {N > 1 && (
-        <SegmentedProgress
+        <CarouselDots
           count={N}
           activeIndex={active}
           className="mgal-progress"

@@ -7,7 +7,7 @@ import { getSettings, publicSettings } from "@/lib/settings";
 import { readPolicy } from "@/lib/policy";
 import { getCategories } from "@/lib/catalog";
 import { FEATURES } from "@/lib/features";
-import { Header, Footer, Announcement } from "@/components/chrome";
+import { Header, Footer } from "@/components/chrome";
 import { ProductCard } from "@/components/parts";
 
 import { imgSrc, PDP_WIDTHS, PDP_SIZES, PDP_SRC_WIDTH } from "@/components/img-src";
@@ -296,7 +296,6 @@ export default async function PDP(props: { params: Promise<{ slug: string }>; se
           fetchPriority="high"
         />
       )}
-      <Announcement text={s.homepage?.announcement} />
       <Header storeName={cfg.store?.name || "Store"} categories={cats.map((c) => ({ name: c.name, slug: c.slug }))} />
       <div className="container">
         <div style={{ padding: "22px 0 0", fontSize: 12.5, color: "var(--muted)" }}>
