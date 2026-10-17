@@ -8,10 +8,15 @@ type Props = {
   label?: string;
 };
 
-/* Thin, equal-width image indicators shared by the product cards and PDP galleries.
-   They stay decorative inside product-card links, but are tappable navigation controls
-   on the product detail page. */
-export default function SegmentedProgress({
+/* Carousel dots — one dot per photo, the active one filled.
+
+   This replaces the old segmented progress bar (one stretched thin line per photo). The API is
+   unchanged so cards, the PDP gallery and the mobile gallery all keep working: pass `onSelect`
+   and the dots become tappable controls, omit it and they stay decoration.
+
+   On a product card they must stay decoration: the whole card is one <a>, and an <a> may not
+   contain interactive elements. */
+export default function CarouselDots({
   count,
   activeIndex,
   className = "",
@@ -25,24 +30,24 @@ export default function SegmentedProgress({
 
   return (
     <div
-      className={["image-progress", className].filter(Boolean).join(" ")}
+      className={["carousel-dots", className].filter(Boolean).join(" ")}
       role={interactive ? "group" : undefined}
       aria-label={interactive ? label : undefined}
       aria-hidden={interactive ? undefined : true}
     >
       {Array.from({ length: count }, (_, index) => {
-        const segmentClass = "image-progress-segment" + (index === current ? " is-active" : "");
+        const dotClass = "carousel-dot" + (index === current ? " is-active" : "");
         return interactive ? (
           <button
             key={index}
             type="button"
-            className={segmentClass}
+            className={dotClass}
             aria-label={`Show image ${index + 1}`}
             aria-current={index === current ? "step" : undefined}
             onClick={() => onSelect(index)}
           />
         ) : (
-          <span key={index} className={segmentClass} aria-hidden="true" />
+          <span key={index} className={dotClass} aria-hidden="true" />
         );
       })}
     </div>
