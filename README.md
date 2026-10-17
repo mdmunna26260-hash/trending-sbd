@@ -1,4 +1,4 @@
-# SINZO — Commerce Platform
+# Trendings — Commerce Platform
 
 A production-grade, fully functional e-commerce platform (customer storefront + admin panel) built for real Bangladeshi online business — following the MASTER PROMPT specification (Shopify-level feature set, phased build).
 
